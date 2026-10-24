@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>autojob</title>
+<style>
+  :root {
+    --bg: #f6f6f3; --card: #ffffff; --text: #1d1d1b; --muted: #6b6b66; --line: #e3e3de;
+    --accent: #2f6fdf; --accent-text: #ffffff; --good: #1d8a4e; --warn: #b7791f; --bad: #c0392b;
+    --chip: #ececE7; --code: #f1f1ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --card: #1e1e1c; --text: #ececE7; --muted: #9a9a93; --line: #2f2f2c;
+      --accent: #5b8ff0; --accent-text: #0b0b0a; --good: #4cc27f; --warn: #e0a84a; --bad: #e46b5d;
+      --chip: #2a2a27; --code: #232321;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding: 12px 16px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  .top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: 18px; margin: 0; margin-right: auto; }
+  button, select, input { font: inherit; color: inherit; }
+  button { background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: wait; }
+  .tabs { display: flex; gap: 4px; margin-top: 10px; flex-wrap: wrap; }
+  .tab { border-radius: 999px; }
+  .tab.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .filters { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  select, input[type=search] { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  input[type=search] { flex: 1; min-width: 160px; }
+  label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); }
+  main { padding: 16px; }
+  .job { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; }
+  .job-head { display: flex; gap: 12px; padding: 12px 14px; cursor: pointer; align-items: flex-start; }
+  .score { min-width: 38px; text-align: center; font-weight: 700; border-radius: 8px; padding: 4px 0; background: var(--chip); }
+  .score.hi { background: var(--good); color: #fff; }
+  .title { font-weight: 600; font-size: 15px; }
+  .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 2px; }
+  .pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  .pill.yes { color: var(--good); } .pill.unknown { color: var(--warn); } .pill.no { color: var(--bad); }
+  .body { display: none; border-top: 1px solid var(--line); padding: 12px 14px; }
+  .job.open .body { display: block; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .desc { white-space: pre-wrap; background: var(--code); border-radius: 8px; padding: 10px 12px; max-height: 320px; overflow: auto; font-size: 13px; }
+  textarea { width: 100%; min-height: 260px; background: var(--code); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: 13px/1.5 ui-monospace, Consolas, monospace; }
+  textarea.notes { min-height: 50px; font-family: inherit; }
+  h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 6px; }
+  .empty { text-align: center; color: var(--muted); padding: 48px 0; }
+  .err { color: var(--bad); }
+  #links { display: none; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; }
+  #links.open { display: block; }
+  #links table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  #links td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  #links a { color: var(--accent); margin-right: 10px; white-space: nowrap; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  @media (max-width: 600px) { .job-head { gap: 8px; } .score { min-width: 32px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <h1>autojob</h1>
+      <button id="linksBtn">Indeed / LinkedIn links</button>
+      <button id="fetchBtn" class="primary">Fetch new jobs</button>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="filters">
+      <select id="track"><option value="">All tracks</option></select>
+      <select id="source"><option value="">All sources</option></select>
+      <input type="search" id="q" placeholder="Search title, company, text…">
+      <label class="chk"><input type="checkbox" id="all"> show low-score &amp; restricted</label>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  <section id="links"></section>
+  <div id="list"></div>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { status: "new", track: "", source: "", q: "", all: false, open: null, jobs: [], tracks: {} };
+const TABS = [["new", "New"], ["saved", "Saved"], ["applied", "Applied"], ["skipped", "Skipped"]];
+const SOURCE_NAMES = { onlinejobs: "OnlineJobs.ph", himalayas: "Himalayas", jobicy: "Jobicy", remotive: "Remotive",
+  remoteok: "RemoteOK", weworkremotely: "We Work Remotely", workingnomads: "Working Nomads" };
+const ELIG = { yes: "open to PH", unknown: "location unclear", no: "restricted" };
+
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 2200); }
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+async function load() {
+  const p = new URLSearchParams({ status: state.status, track: state.track, source: state.source, q: state.q, all: state.all ? 1 : 0 });
+  const data = await api("/api/jobs?" + p);
+  state.jobs = data.jobs; state.tracks = data.tracks; state.lastFetch = data.last_fetch;
+  $("#tabs").innerHTML = TABS.map(([k, label]) =>
+    `<button class="tab ${k === state.status ? "on" : ""}" data-tab="${k}">${label} (${data.counts[k] || 0})</button>`).join("");
+  fillSelect("#track", "All tracks", Object.entries(data.tracks));
+  fillSelect("#source", "All sources", data.sources.map(s => [s, SOURCE_NAMES[s] || s]));
+  render();
+}
+
+function fillSelect(sel, first, pairs) {
+  const el = $(sel), cur = el.value;
+  el.innerHTML = `<option value="">${first}</option>` + pairs.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join("");
+  el.value = cur;
+}
+
+function render() {
+  if (!state.jobs.length) {
+    $("#list").innerHTML = `<div class="empty">${state.status === "new" ? "No jobs here yet. Click “Fetch new jobs”." : "Nothing here yet."}</div>`;
+    return;
+  }
+  $("#list").innerHTML = state.jobs.map(j => `
+    <article class="job ${state.open === j.id ? "open" : ""}" data-id="${j.id}">
+      <div class="job-head" data-toggle>
+        <div class="score ${j.score >= 15 ? "hi" : ""}" title="match score">${j.score}</div>
+        <div>
+          <div class="title">${esc(j.title)}</div>
+          <div class="meta">
+            ${j.company ? `<span>${esc(j.company)}</span>` : ""}
+            <span>${esc(SOURCE_NAMES[j.source] || j.source)}</span>
+            ${j.salary && j.salary !== "N/A" ? `<span>💰 ${esc(j.salary)}</span>` : ""}
+            ${j.job_type ? `<span>${esc(j.job_type)}</span>` : ""}
+            ${j.posted_at ? `<span>${esc(j.posted_at.slice(0, 16))}</span>` : ""}
+          </div>
+          <div class="meta" style="margin-top:4px">
+            ${j.track ? `<span class="pill">${esc(state.tracks[j.track] || j.track)}</span>` : ""}
+            <span class="pill ${j.eligible}" title="${esc(j.location)}">${ELIG[j.eligible]}${j.location ? " · " + esc(j.location.slice(0, 40)) : ""}</span>
+            ${state.lastFetch && j.first_seen >= state.lastFetch ? `<span class="pill yes">new this fetch</span>` : ""}
+            ${j.draft ? `<span class="pill">draft ready</span>` : ""}
+            ${j.applied_at ? `<span class="pill yes">applied ${esc(j.applied_at.slice(0, 10))}</span>` : ""}
+          </div>
+        </div>
+      </div>
+      ${state.open === j.id ? detail(j) : ""}
+    </article>`).join("");
+}
+
+function detail(j) {
+  return `<div class="body">
+    <div class="actions">
+      <a href="${esc(j.url)}" target="_blank" rel="noopener"><button class="primary">Open job ↗</button></a>
+      <button data-draft>${j.draft ? "Regenerate draft" : "✍️ Draft application"}</button>
+      ${j.status !== "applied" ? `<button data-status="applied">✅ Mark applied</button>` : ""}
+      ${j.status !== "saved" ? `<button data-status="saved">⭐ Save</button>` : ""}
+      ${j.status !== "skipped" ? `<button data-status="skipped">Skip</button>` : ""}
+      ${j.status !== "new" ? `<button data-status="new">Move to New</button>` : ""}
+    </div>
+    <div data-draftbox>${j.draft ? draftBox(j.draft) : ""}</div>
+    <h3>My notes</h3>
+    <textarea class="notes" data-notes placeholder="e.g. sent via OLJ 10/23, asked for Loom">${esc(j.notes || "")}</textarea>
+    <h3>Job post</h3>
+    <div class="desc">${esc(j.description || "(no description — open the job link)")}</div>
+  </div>`;
+}
+
+function draftBox(text) {
+  return `<h3>Draft (edit freely, it saves automatically)</h3>
+    <textarea data-drafttext>${esc(text)}</textarea>
+    <div class="actions" style="margin-top:8px">
+      <button data-copy="subject">Copy subject</button>
+      <button data-copy="message">Copy message</button>
+      <button data-copy="all">Copy all</button>
+    </div>`;
+}
+
+function part(text, which) {
+  if (which === "all") return text;
+  const subj = text.match(/SUBJECT:\s*(.*)/i);
+  if (which === "subject") return subj ? subj[1].trim() : "";
+  const msg = text.match(/MESSAGE:\s*([\s\S]*?)(\n\s*CHECKLIST:|$)/i);
+  return msg ? msg[1].trim() : text;
+}
+
+const job = id => state.jobs.find(j => j.id === id);
+
+$("#list").addEventListener("click", async e => {
+  const card = e.target.closest(".job"); if (!card) return;
+  const j = job(card.dataset.id);
+  if (e.target.closest("[data-toggle]")) { state.open = state.open === j.id ? null : j.id; render(); return; }
+  const st = e.target.closest("[data-status]");
+  if (st) {
+    await api(`/api/jobs/${j.id}`, { status: st.dataset.status });
+    toast(`Moved to ${st.dataset.status}`); state.open = null; load(); return;
+  }
+  if (e.target.closest("[data-draft]")) {
+    const btn = e.target.closest("[data-draft]"); btn.disabled = true; btn.textContent = "Drafting…";
+    try {
+      const r = await api(`/api/jobs/${j.id}/draft`, {});
+      j.draft = r.draft; j.description = r.description; render();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "✍️ Draft application";
+      card.querySelector("[data-draftbox]").innerHTML = `<p class="err">${esc(err.message)}</p>`;
+    }
+    return;
+  }
+  const cp = e.target.closest("[data-copy]");
+  if (cp) { await navigator.clipboard.writeText(part(j.draft, cp.dataset.copy)); toast("Copied"); }
+});
+
+const saveTimers = {};
+$("#list").addEventListener("input", e => {
+  const card = e.target.closest(".job"); const j = job(card.dataset.id);
+  const field = e.target.matches("[data-notes]") ? "notes" : e.target.matches("[data-drafttext]") ? "draft" : null;
+  if (!field) return;
+  j[field] = e.target.value;
+  const key = j.id + field;
+  clearTimeout(saveTimers[key]);
+  saveTimers[key] = setTimeout(() => api(`/api/jobs/${j.id}`, { [field]: j[field] }), 500);
+});
+
+$("#tabs").addEventListener("click", e => { const t = e.target.closest("[data-tab]"); if (t) { state.status = t.dataset.tab; state.open = null; load(); } });
+$("#track").onchange = e => { state.track = e.target.value; load(); };
+$("#source").onchange = e => { state.source = e.target.value; load(); };
+$("#all").onchange = e => { state.all = e.target.checked; load(); };
+let qTimer; $("#q").oninput = e => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.q = e.target.value; load(); }, 300); };
+
+$("#fetchBtn").onclick = async () => {
+  const b = $("#fetchBtn"); b.disabled = true; b.textContent = "Fetching… (~1–2 min)";
+  try {
+    const r = await api("/api/fetch", {});
+    const n = r.summary.reduce((a, s) => a + s.new, 0), failed = r.summary.filter(s => s.error).map(s => s.source);
+    toast(`${n} new jobs` + (failed.length ? ` · problems with: ${failed.join(", ")} (see terminal)` : ""));
+    load();
+  } catch (err) { toast("Fetch failed: " + err.message); }
+  b.disabled = false; b.textContent = "Fetch new jobs";
+};
+
+$("#linksBtn").onclick = async () => {
+  const box = $("#links");
+  if (!box.dataset.loaded) {
+    const rows = await api("/api/links");
+    box.innerHTML = `<h3 style="margin-top:0">These sites block bots, so search them by hand. Each link opens a fresh remote search.</h3>
+      <table>${rows.map(r => `<tr><td><b>${esc(r.keyword)}</b></td><td>${Object.entries(r).filter(([k]) => k !== "keyword")
+        .map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(k)}</a>`).join("")}</td></tr>`).join("")}</table>`;
+    box.dataset.loaded = 1;
+  }
+  box.classList.toggle("open");
+};
+
+load();
+</script>
+</body>
+</html>

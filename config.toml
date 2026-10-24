@@ -1,0 +1,117 @@
+# autojob settings. Edit freely, then run `python autojob.py rescore` (or just fetch again).
+
+# ---------------------------------------------------------------------------
+# Tracks: what kinds of jobs you want.
+#   search   = terms typed into OnlineJobs.ph and Himalayas search (each one is a search).
+#   keywords = extra scoring words. Search terms count for scoring too.
+# A job gets title_weight points per term in its title, body_weight if only in
+# the description, and is assigned to whichever track scores highest.
+# ---------------------------------------------------------------------------
+[tracks.automation]
+label = "Automation / AI VA"
+search = [
+  "zapier", "n8n", "make.com", "workflow automation", "automation specialist", "gohighlevel",
+  "ai automation", "chatgpt", "ai assistant", "airtable", "web scraping", "python",
+]
+keywords = [
+  "integromat", "automation", "automate", "workflow", "ai specialist", "claude", "gemini",
+  "llm", "prompt", "highlevel", "ghl", "api integration", "scraper", "scraping", "apps script",
+  "no-code", "low-code", "crm automation",
+]
+
+[tracks.specialized_va]
+label = "Specialized VA"
+search = [
+  "shopify", "ecommerce", "amazon", "lead generation", "web research", "hubspot",
+  "wordpress", "tech virtual assistant",
+]
+keywords = [
+  "virtual assistant", "e-commerce", "product listing", "order management", "lead gen",
+  "lead research", "data research", "web research", "data scraping", "prospect", "list building", "data entry", "crm", "website",
+  "web assistant", "technical va", "tech va", "tech support", "customer support",
+  "spreadsheet", "google sheets",
+]
+
+[tracks.dev]
+label = "Software Dev"
+search = [
+  "web developer", "full stack", "react", "next.js", "node.js", "python developer",
+  "software engineer", "backend developer",
+]
+keywords = [
+  "software developer", "full-stack", "fullstack", "backend", "back-end", "frontend",
+  "front-end", "nextjs", "typescript", "javascript", "node", "express", "kotlin", "java",
+  "spring boot", "fastapi", "postgres", "supabase", "aws", "rag", "ai engineer",
+]
+
+[scoring]
+title_weight = 4
+body_weight = 1
+# Points added when the job clearly accepts applicants from the Philippines / worldwide.
+eligible_bonus = 6
+# Titles with these words are pushed down (you are early-career as a dev).
+demote_title = ["senior", "sr.", "staff", "principal", "team lead", "tech lead", "lead engineer", "lead developer", "head of", "director", "vp ", "manager", "architect"]
+demote_points = 5
+# Titles with these words are hidden completely.
+exclude_title = ["on-site", "onsite", "on site", "hybrid", "nurse", "driver", "teacher", "tutor", "sales closer", "cold caller", "appointment setter"]
+# Jobs scoring below this are hidden by default in the dashboard (toggle "show all" to see them).
+min_score = 8
+# Jobs posted (or first seen) more than this many days ago drop out of the inbox (likely filled).
+max_age_days = 14
+
+# ---------------------------------------------------------------------------
+# Location eligibility. Many "remote" jobs are US/EU-only; these rules sort them out.
+# ---------------------------------------------------------------------------
+[location]
+# A job's location field containing any of these = you can apply.
+ok = ["worldwide", "anywhere", "global", "philippines", "apac", "asia", "southeast asia", "remote - all", "international"]
+# Phrases in the description that mean you can't apply.
+blocked_phrases = [
+  "us only", "usa only", "u.s. only", "us-only", "us residents only", "must reside in the us",
+  "must be located in the us", "must be based in the us", "authorized to work in the us",
+  "authorized to work in the united states", "us citizen", "u.s. citizen", "green card",
+  "eu only", "emea only", "must be based in europe", "must reside in canada", "uk only",
+  "must be located in the united states", "w-2", "w2 only",
+]
+
+# ---------------------------------------------------------------------------
+# Sources. Set enabled = false to skip one.
+# ---------------------------------------------------------------------------
+# OnlineJobs.ph and Himalayas search every track's `search` terms.
+# Paging stops early once a page has nothing new, so daily runs stay short;
+# max_pages only matters on the first run or after a long break.
+[sources.onlinejobs]
+enabled = true
+max_pages = 3          # 30 jobs per page
+delay_seconds = 3      # pause between requests
+extra_search = []      # OLJ-only terms, if any
+
+[sources.himalayas]
+enabled = true
+# Searches only jobs open to applicants in this country.
+country = "Philippines"
+max_pages = 2          # 20 jobs per page (sorted by relevance, not date)
+delay_seconds = 2      # Himalayas rate-limits at roughly 30 quick requests
+extra_search = []
+
+[sources.jobicy]
+enabled = true
+geos = ["apac", "philippines", ""]   # "" = all regions
+
+[sources.remotive]
+enabled = true
+
+[sources.remoteok]
+enabled = true
+
+[sources.weworkremotely]
+enabled = true
+
+[sources.workingnomads]
+enabled = true
+
+# ---------------------------------------------------------------------------
+# Search links shown in the dashboard for sites that block bots (Indeed etc.).
+# ---------------------------------------------------------------------------
+[links]
+keywords = ["virtual assistant automation", "zapier", "n8n", "shopify virtual assistant", "lead generation", "full stack developer", "react developer"]
