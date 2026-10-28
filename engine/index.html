@@ -50,6 +50,10 @@
   .desc { white-space: pre-wrap; background: var(--code); border-radius: 8px; padding: 10px 12px; max-height: 320px; overflow: auto; font-size: 13px; }
   textarea { width: 100%; min-height: 260px; background: var(--code); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: 13px/1.5 ui-monospace, Consolas, monospace; }
   textarea.notes { min-height: 50px; font-family: inherit; }
+  textarea.reply { min-height: 220px; font: 14px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .note { white-space: pre-wrap; border-left: 3px solid var(--accent); background: var(--code); border-radius: 0 8px 8px 0; padding: 10px 12px; font-size: 13px; }
+  .ask { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .ask input { flex: 1; min-width: 200px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
   h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 14px 0 6px; }
   .empty { text-align: center; color: var(--muted); padding: 48px 0; }
   .err { color: var(--bad); }
@@ -142,7 +146,7 @@ function render() {
             ${j.track ? `<span class="pill">${esc(state.tracks[j.track] || j.track)}</span>` : ""}
             <span class="pill ${j.eligible}" title="${esc(j.location)}">${ELIG[j.eligible]}${j.location ? " · " + esc(j.location.slice(0, 40)) : ""}</span>
             ${state.lastFetch && j.first_seen >= state.lastFetch ? `<span class="pill yes">new this fetch</span>` : ""}
-            ${j.draft ? `<span class="pill">draft ready</span>` : ""}
+            ${j.draft ? `<span class="pill">reply ready</span>` : ""}
             ${j.applied_at ? `<span class="pill yes">applied ${esc(j.applied_at.slice(0, 10))}</span>` : ""}
           </div>
         </div>
@@ -155,13 +159,16 @@ function detail(j) {
   return `<div class="body">
     <div class="actions">
       <a href="${esc(j.url)}" target="_blank" rel="noopener"><button class="primary">Open job ↗</button></a>
-      <button data-draft>${j.draft ? "Regenerate draft" : "✍️ Draft application"}</button>
       ${j.status !== "applied" ? `<button data-status="applied">✅ Mark applied</button>` : ""}
       ${j.status !== "saved" ? `<button data-status="saved">⭐ Save</button>` : ""}
       ${j.status !== "skipped" ? `<button data-status="skipped">Skip</button>` : ""}
       ${j.status !== "new" ? `<button data-status="new">Move to New</button>` : ""}
     </div>
-    <div data-draftbox>${j.draft ? draftBox(j.draft) : ""}</div>
+    <div class="ask">
+      <input data-extra placeholder="Optional instruction for Claude, e.g. short version, mention Shopify">
+      <button data-draft>${j.draft ? "↻ Regenerate" : "✨ Ask Claude"}</button>
+    </div>
+    <div data-draftbox>${j.draft ? draftBox(j) : ""}</div>
     <h3>My notes</h3>
     <textarea class="notes" data-notes placeholder="e.g. sent via OLJ 10/23, asked for Loom">${esc(j.notes || "")}</textarea>
     <h3>Job post</h3>
@@ -169,22 +176,11 @@ function detail(j) {
   </div>`;
 }
 
-function draftBox(text) {
-  return `<h3>Draft (edit freely, it saves automatically)</h3>
-    <textarea data-drafttext>${esc(text)}</textarea>
-    <div class="actions" style="margin-top:8px">
-      <button data-copy="subject">Copy subject</button>
-      <button data-copy="message">Copy message</button>
-      <button data-copy="all">Copy all</button>
-    </div>`;
-}
-
-function part(text, which) {
-  if (which === "all") return text;
-  const subj = text.match(/SUBJECT:\s*(.*)/i);
-  if (which === "subject") return subj ? subj[1].trim() : "";
-  const msg = text.match(/MESSAGE:\s*([\s\S]*?)(\n\s*CHECKLIST:|$)/i);
-  return msg ? msg[1].trim() : text;
+function draftBox(j) {
+  return `<h3>Claude's reply (edit freely, it saves automatically)</h3>
+    <textarea class="reply" data-drafttext>${esc(j.draft)}</textarea>
+    <div class="actions" style="margin-top:8px"><button data-copy>Copy reply</button></div>
+    ${j.note ? `<h3>Claude's note</h3><div class="note">${esc(j.note)}</div>` : ""}`;
 }
 
 const job = id => state.jobs.find(j => j.id === id);
@@ -199,18 +195,19 @@ $("#list").addEventListener("click", async e => {
     toast(`Moved to ${st.dataset.status}`); state.open = null; load(); return;
   }
   if (e.target.closest("[data-draft]")) {
-    const btn = e.target.closest("[data-draft]"); btn.disabled = true; btn.textContent = "Drafting…";
+    const btn = e.target.closest("[data-draft]"), label = btn.textContent;
+    btn.disabled = true; btn.textContent = "Claude is writing… (~15–30s)";
     try {
-      const r = await api(`/api/jobs/${j.id}/draft`, {});
-      j.draft = r.draft; j.description = r.description; render();
+      const r = await api(`/api/jobs/${j.id}/draft`, { extra: card.querySelector("[data-extra]").value });
+      j.draft = r.draft; j.note = r.note; j.description = r.description; render();
     } catch (err) {
-      btn.disabled = false; btn.textContent = "✍️ Draft application";
+      btn.disabled = false; btn.textContent = label;
       card.querySelector("[data-draftbox]").innerHTML = `<p class="err">${esc(err.message)}</p>`;
     }
     return;
   }
   const cp = e.target.closest("[data-copy]");
-  if (cp) { await navigator.clipboard.writeText(part(j.draft, cp.dataset.copy)); toast("Copied"); }
+  if (cp) { await navigator.clipboard.writeText(j.draft); toast("Copied"); }
 });
 
 const saveTimers = {};

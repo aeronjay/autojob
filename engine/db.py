@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     eligible    TEXT DEFAULT 'unknown',   -- yes / no / unknown
     hidden      INTEGER DEFAULT 0,        -- excluded by title rules
     status      TEXT DEFAULT 'new',       -- new / saved / applied / skipped
-    draft       TEXT,
+    draft       TEXT,                     -- Claude's reply (editable)
+    note        TEXT,                     -- Claude's note about the job and its reply
     detailed    INTEGER DEFAULT 0,        -- 1 once the full post has been fetched
     notes       TEXT,
     first_seen  TEXT NOT NULL,
@@ -69,6 +70,8 @@ def connect():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    if "note" not in {r[1] for r in conn.execute("PRAGMA table_info(jobs)")}:  # databases made before notes
+        conn.execute("ALTER TABLE jobs ADD COLUMN note TEXT")
     return conn
 
 

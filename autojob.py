@@ -1,10 +1,9 @@
-"""autojob: find remote jobs, score them, draft applications. You click send.
+"""autojob: find remote jobs, score them, have Claude write replies. You click send.
 
 Usage:
   python autojob.py fetch     # pull new jobs from every source
   python autojob.py serve     # open the dashboard at http://127.0.0.1:5000
   python autojob.py rescore   # re-apply config.toml scoring to saved jobs
-  python autojob.py models    # list Gemini models your API key can use
 """
 import sys
 import webbrowser
@@ -13,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from engine import core, db, drafting, scoring  # noqa: E402
+from engine import core, db, scoring  # noqa: E402
 
 
 def main():
@@ -31,8 +30,6 @@ def main():
         app.run(port=5000, debug=False)
     elif cmd == "rescore":
         print(f"Rescored {scoring.rescore_all(db.connect(), core.load_config())} jobs.")
-    elif cmd == "models":
-        print("\n".join(drafting.list_models()))
     else:
         print(__doc__)
 

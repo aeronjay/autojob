@@ -1,4 +1,4 @@
-"""Local dashboard: browse scored jobs, draft applications, track status."""
+"""Local dashboard: browse scored jobs, get Claude's replies, track status."""
 from datetime import datetime
 from pathlib import Path
 
@@ -73,7 +73,7 @@ def draft(jid):
     conn = db.connect()
     get_job = lambda: conn.execute("SELECT * FROM jobs WHERE id=?", (jid,)).fetchone()
     try:
-        drafting.api_key()  # fail fast before fetching anything
+        drafting.claude_bin()  # fail fast before fetching anything
         job = get_job()
         if not job:
             return jsonify(error="Job not found"), 404
@@ -82,10 +82,10 @@ def draft(jid):
                          (sources.olj_details(job["url"]), jid))
             conn.commit()
             job = get_job()
-        text = drafting.generate(job)
-        conn.execute("UPDATE jobs SET draft=? WHERE id=?", (text, jid))
+        reply, note = drafting.generate(job, (request.get_json(silent=True) or {}).get("extra", ""))
+        conn.execute("UPDATE jobs SET draft=?, note=? WHERE id=?", (reply, note, jid))
         conn.commit()
-        return jsonify(draft=text, description=job["description"])
+        return jsonify(draft=reply, note=note, description=job["description"])
     except Exception as e:
         return jsonify(error=str(e)), 500
     finally:
