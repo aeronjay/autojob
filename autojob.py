@@ -2,9 +2,10 @@
 
 Usage:
   python autojob.py fetch     # pull new jobs from every source
-  python autojob.py serve     # open the dashboard at http://127.0.0.1:5000
+  python autojob.py serve     # open the dashboard at http://127.0.0.1:5000 (5050 on a Mac)
   python autojob.py rescore   # re-apply config.toml scoring to saved jobs
 """
+import os
 import sys
 import webbrowser
 
@@ -27,8 +28,10 @@ def main():
     elif cmd == "serve":
         from engine.app import app
         core.ensure_scored()
-        webbrowser.open("http://127.0.0.1:5000")
-        app.run(port=5000, debug=False)
+        # macOS uses port 5000 for AirPlay Receiver, so Macs default to 5050. PORT in .env overrides.
+        port = int(os.environ.get("PORT") or (5050 if sys.platform == "darwin" else 5000))
+        webbrowser.open(f"http://127.0.0.1:{port}")
+        app.run(port=port, debug=False)
     elif cmd == "rescore":
         print(f"Rescored {scoring.rescore_all(db.connect(), core.load_config())} jobs.")
     else:

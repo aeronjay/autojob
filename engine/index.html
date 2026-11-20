@@ -942,7 +942,7 @@ function sourcesTab() {
   return `<p class="muted" style="margin-top:0">Sites autojob reads automatically. You can still pick a subset each time you fetch.</p>
     <div class="group-title">Remote job boards</div>${S.sources.filter(s => s.kind === "remote").map(row).join("")}
     <div class="group-title">Teaching abroad</div>${S.sources.filter(s => s.kind === "abroad").map(row).join("")}
-    <p class="muted" style="font-size:13.5px">LinkedIn, Indeed, JobStreet, Upwork, Reddit and TES block automated reading. Use <b>Search links</b> in the header for one-click searches there.</p>`;
+    <p class="muted" style="font-size:13.5px">JobStreet, Upwork, Reddit and TES block automated reading. Use <b>Search links</b> in the header for one-click searches there.</p>`;
 }
 
 function rankingTab() {

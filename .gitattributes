@@ -1,0 +1,4 @@
+# The Mac launcher breaks with Windows line endings; the Windows one wants them.
+*.command text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
