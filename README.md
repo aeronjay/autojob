@@ -59,11 +59,11 @@ Finding and ranking jobs works without Claude. You only need it for **Ask Claude
 **With Git:**
 
 ```bash
-git clone https://github.com/<your-username>/autojob.git
+git clone https://github.com/aeronjay/autojob.git
 cd autojob
 ```
 
-**Without Git:** on the GitHub page click **Code → Download ZIP**, unzip it somewhere you'll find again (e.g. Documents), then open PowerShell / Terminal in that folder:
+**Without Git:** on the [GitHub page](https://github.com/aeronjay/autojob) click **Code → Download ZIP**, unzip it somewhere you'll find again (e.g. Documents), then open PowerShell / Terminal in that folder:
 - Windows: open the folder in File Explorer, click the address bar, type `powershell` and press Enter.
 - Mac: right-click the folder in Finder → **New Terminal at Folder** (or type `cd ` in Terminal and drag the folder onto the window).
 
