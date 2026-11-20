@@ -39,6 +39,26 @@ def index():
     return send_file(INDEX)
 
 
+def pay_filter(bands):
+    """Pay ranges picked in the list's Pay filter: "none" (pay not stated) or "lo-hi" USD/month,
+    hi optional ("3000-" = 3,000 and up). A job falls in the range its midpoint is in."""
+    conds, args = [], []
+    for b in bands:
+        if b == "none":
+            conds.append("pay_max IS NULL")
+            continue
+        lo, _, hi = b.partition("-")
+        if not lo.isdigit() or (hi and not hi.isdigit()):
+            continue
+        c = "pay_max IS NOT NULL AND (pay_min+pay_max)/2.0>=?"
+        args.append(int(lo))
+        if hi:
+            c += " AND (pay_min+pay_max)/2.0<?"
+            args.append(int(hi))
+        conds.append(f"({c})")
+    return (f" AND ({' OR '.join(conds)})", args) if conds else ("", [])
+
+
 @app.get("/api/jobs")
 def jobs():
     cfg = core.load_config()
@@ -54,15 +74,16 @@ def jobs():
     if status == "new" and a.get("all") != "1":
         sql += f" AND {db.INBOX_FILTER}"
         args += db.inbox_args(cfg)
-    if a.get("track"):
-        sql += " AND track=?"
-        args.append(a["track"])
-    if a.get("source"):
-        sql += " AND source=?"
-        args.append(a["source"])
-    if a.get("minpay", "").isdigit() and status != "applied":
-        sql += " AND (pay_max IS NULL OR pay_max>=?)"  # jobs with no stated pay stay visible
-        args.append(int(a["minpay"]))
+    # Each filter can pick several values (?track=a&track=b); none picked = no filter.
+    for col in ("track", "source"):
+        picked = [v for v in a.getlist(col) if v]
+        if picked:
+            sql += f" AND {col} IN ({','.join('?' * len(picked))})"
+            args += picked
+    if status != "applied":
+        sql_pay, pay_args = pay_filter(a.getlist("pay"))
+        sql += sql_pay
+        args += pay_args
     if a.get("q"):
         sql += " AND (title LIKE ? OR company LIKE ? OR description LIKE ? OR notes LIKE ?)"
         args += [f"%{a['q']}%"] * 4

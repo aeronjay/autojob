@@ -190,7 +190,7 @@ fresh_bonus = 3
 # ---------------------------------------------------------------------------
 # Pay. Stated pay is converted to an estimated USD per month so jobs can be compared
 # ("$5/hr" counts as full-time hours). Jobs that don't state pay are left alone.
-# The dashboard also has a "Min pay" filter; this section only affects ranking.
+# The dashboard also has a "Pay" filter; this section only affects ranking.
 # ---------------------------------------------------------------------------
 [pay]
 good_usd_month = 1200   # at or above this: +good_bonus points

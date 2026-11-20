@@ -71,6 +71,20 @@
   #toolbar .line { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
   #toolbar input[type=search] { flex: 1; background: var(--bg); }
   #toolbar select { flex: 1 1 120px; padding: 6px 8px; font-size: 14px; }
+  /* Multi-select filter dropdowns (Track, Source, Pay) */
+  .ms { position: relative; flex: 1 1 120px; min-width: 0; }
+  .ms > button { width: 100%; display: flex; align-items: center; gap: 6px; padding: 6px 8px; font-size: 14px; text-align: left; box-shadow: none; }
+  .ms > button span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .ms > button::after { content: "▾"; color: var(--faint); }
+  .ms.active > button { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+  .ms-pop { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; min-width: 100%; width: max-content; max-width: min(300px, 90vw);
+            max-height: 340px; overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(16,24,40,.16); padding: 6px; }
+  .ms[data-ms="pay"] .ms-pop { left: auto; right: 0; }
+  .ms-head { display: flex; justify-content: space-between; gap: 12px; padding: 2px 8px 6px; margin-bottom: 4px; border-bottom: 1px solid var(--line-soft); font-size: 13px; color: var(--muted); }
+  .ms-pop label { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  .ms-pop label:hover { background: var(--raised); }
+  .ms-pop input { margin: 0; accent-color: var(--accent); }
   label.chk { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 13.5px; cursor: pointer; }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip { border-radius: 999px; padding: 4px 12px; font-size: 13.5px; box-shadow: none; }
@@ -278,12 +292,9 @@
     <div id="toolbar">
       <div class="line"><input type="search" id="q" placeholder="Search title, company, post, notes…  ( / )"></div>
       <div class="line" id="jobFilters">
-        <select id="track" title="Track"></select>
-        <select id="source" title="Source"></select>
-        <select id="minpay" title="Hide jobs whose stated pay is below this. Jobs with no stated pay stay.">
-          <option value="">Any pay</option><option value="500">$500+/mo</option><option value="800">$800+/mo</option>
-          <option value="1000">$1,000+/mo</option><option value="1500">$1,500+/mo</option><option value="2000">$2,000+/mo</option><option value="3000">$3,000+/mo</option>
-        </select>
+        <div class="ms" data-ms="track"></div>
+        <div class="ms" data-ms="source"></div>
+        <div class="ms" data-ms="pay"></div>
         <select id="sort" title="Sort">
           <option value="best">Best match</option><option value="newest">Newest</option><option value="pay">Highest pay</option>
         </select>
@@ -357,7 +368,8 @@ const store = {
   get(k, d) { try { return localStorage.getItem("autojob." + k) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem("autojob." + k, v); } catch {} },
 };
-const state = { status: "new", track: "", source: "", q: "", all: false, minpay: store.get("minpay", ""), sort: store.get("sort", "best"),
+const storedList = k => { try { const v = JSON.parse(store.get(k, "[]")); return Array.isArray(v) ? v.map(String) : []; } catch { return []; } };
+const state = { status: "new", track: storedList("track"), source: storedList("source"), pay: storedList("pay"), q: "", all: false, sort: store.get("sort", "best"),
                 stage: "", jobs: [], total: 0, sel: null, job: null, events: [], why: [], showWhy: false, counts: {}, stageCounts: {},
                 tracks: {}, trackKinds: {}, trackLabels: {}, stages: {}, today: "", busy: {} };
 const VIEWS = [["new", "Inbox"], ["saved", "Saved"], ["applied", "Applications"], ["skipped", "Skipped"]];
@@ -428,15 +440,14 @@ function hourlyText(j) {
 
 // --- List ----------------------------------------------------------------------
 async function load() {
-  const p = new URLSearchParams({ status: state.status, track: state.track, source: state.source, q: state.q,
-    all: state.all ? 1 : 0, minpay: state.minpay, sort: state.sort, stage: state.stage });
+  const p = new URLSearchParams({ status: state.status, q: state.q, all: state.all ? 1 : 0, sort: state.sort, stage: state.stage });
+  for (const k of Object.keys(MS)) state[k].forEach(v => p.append(k, v));
   const data = await api("/api/jobs?" + p);
   Object.assign(state, { jobs: data.jobs, total: data.total, counts: data.counts, stageCounts: data.stage_counts, tracks: data.tracks,
     trackKinds: data.track_kinds, trackLabels: data.track_labels, stages: Object.fromEntries(data.stages), today: data.today, lastFetch: data.last_fetch,
     followUpDays: data.follow_up_days, setupDone: data.setup_done });
   Object.assign(SOURCE_NAMES, data.source_names);
-  fillSelect("#track", "All tracks", Object.entries(data.tracks));
-  fillSelect("#source", "All sources", data.sources.map(s => [s, srcName(s)]));
+  if (setMsOptions("track", Object.entries(data.tracks)) + setMsOptions("source", data.sources.map(s => [s, srcName(s)]))) return load();
   renderNav(); renderToolbar(); renderList();
   if (!fetchTimer) $("#fetchInfo").textContent = data.last_fetch ? "fetched " + ago(data.last_fetch) : "";
   if (data.profile_todos && store.get("hideProfileTip", "") !== String(data.profile_todos)) {
@@ -450,11 +461,73 @@ async function load() {
   if (!state.sel) renderDetail();
 }
 
-function fillSelect(sel, first, pairs) {
-  const el = $(sel), cur = el.value;
-  el.innerHTML = `<option value="">${first}</option>` + pairs.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join("");
-  el.value = cur;
+// --- Multi-select filters: tick any number of tracks / sources / pay ranges; none ticked = all ---
+const MS = {
+  track: { all: "All tracks", many: "tracks", options: [] },
+  source: { all: "All sources", many: "sources", options: [] },
+  pay: { all: "Any pay", many: "pay ranges", options: [
+    ["none", "Pay not stated"], ["0-500", "Under $500/mo"], ["500-1000", "$500–999/mo"], ["1000-1500", "$1,000–1,499/mo"],
+    ["1500-2000", "$1,500–1,999/mo"], ["2000-3000", "$2,000–2,999/mo"], ["3000-", "$3,000+/mo"]] },
+};
+const msEl = k => document.querySelector(`.ms[data-ms="${k}"]`);
+let msOpen = null;
+
+// New option list from the server. Drops picks that no longer exist; returns true if that changed the filter.
+function setMsOptions(k, options) {
+  const same = JSON.stringify(options) === JSON.stringify(MS[k].options);
+  MS[k].options = options;
+  const keep = state[k].filter(v => options.some(([o]) => o === v));
+  const changed = keep.length !== state[k].length;
+  if (changed) { state[k] = keep; store.set(k, JSON.stringify(keep)); }
+  if (changed || !same || msOpen !== k) renderMs(k);  // leave an open list alone so its focus stays put
+  return changed;
 }
+function msLabel(k) {
+  const picked = state[k], m = MS[k];
+  if (!picked.length) return m.all;
+  if (picked.length === 1) return (m.options.find(([v]) => v === picked[0]) || [, picked[0]])[1];
+  return `${picked.length} ${m.many}`;
+}
+function renderMs(k) {
+  const el = msEl(k), m = MS[k], open = msOpen === k, picked = new Set(state[k]);
+  el.classList.toggle("active", picked.size > 0);
+  const btn = `<button type="button" aria-haspopup="true" aria-expanded="${open}" title="${esc(msLabel(k))}"><span>${esc(msLabel(k))}</span></button>`;
+  if (!open) { el.innerHTML = btn; return; }
+  el.innerHTML = btn + `<div class="ms-pop" role="group" aria-label="${esc(m.all)}">
+    <div class="ms-head"><span>${picked.size ? `${picked.size} selected` : "Showing all"}</span>${picked.size ? `<button type="button" class="link" data-msclear>Show all</button>` : ""}</div>
+    ${m.options.map(([v, l]) => `<label><input type="checkbox" value="${esc(v)}" ${picked.has(v) ? "checked" : ""}> ${esc(l)}</label>`).join("")
+      || `<div class="muted" style="padding:6px 8px">Nothing to pick yet.</div>`}
+  </div>`;
+}
+function toggleMs(k) {
+  const prev = msOpen;
+  msOpen = msOpen === k ? null : k;
+  if (prev && prev !== k) renderMs(prev);
+  renderMs(k);
+  if (msOpen) msEl(k).querySelector(".ms-pop input")?.focus();
+}
+function setMsPicked(k, values) {
+  state[k] = values; store.set(k, JSON.stringify(values));
+  renderMs(k);
+  load();
+}
+document.querySelectorAll(".ms").forEach(el => {
+  const k = el.dataset.ms;
+  el.addEventListener("click", e => {
+    if (e.target.closest(".ms > button")) toggleMs(k);
+    else if (e.target.closest("[data-msclear]")) setMsPicked(k, []);
+  });
+  el.addEventListener("change", e => {
+    if (e.target.type !== "checkbox") return;
+    setMsPicked(k, [...el.querySelectorAll(".ms-pop input:checked")].map(i => i.value));
+    el.querySelector(`.ms-pop input[value="${CSS.escape(e.target.value)}"]`)?.focus();
+  });
+});
+// composedPath, not closest: a click inside can re-render the dropdown and detach its target.
+document.addEventListener("click", e => {
+  if (msOpen && !e.composedPath().some(n => n.classList && n.classList.contains("ms"))) toggleMs(msOpen);
+});
+renderMs("pay");
 
 function renderNav() {
   $("#nav").innerHTML = VIEWS.map(([k, label]) => `<button class="${k === state.status ? "on" : ""}" data-view="${k}">${label}<span class="n">${state.counts[k] || 0}</span>${
@@ -466,7 +539,7 @@ function renderToolbar() {
   $("#jobFilters").style.display = applied ? "none" : "";
   $("#stageChips").style.display = applied ? "" : "none";
   $("#allWrap").style.display = state.status === "new" ? "" : "none";
-  $("#minpay").value = state.minpay; $("#sort").value = state.sort;
+  $("#sort").value = state.sort;
   if (applied) {
     const chips = [["", "All", state.counts.applied || 0], ["due", "Needs action", state.stageCounts.due || 0],
                    ...Object.entries(state.stages).map(([k, l]) => [k, l, state.stageCounts[k] || 0])];
@@ -658,7 +731,7 @@ async function renderOverview() {
     ${s.due ? `<div class="todo"><span><b>${s.due} ${s.due === 1 ? "application needs" : "applications need"} an action</b>: a follow-up is due, or a next step you scheduled.</span><button data-showstage="due">Show them</button></div>` : ""}
     ${s.stale ? `<div class="todo"><span><b>${s.stale} ${s.stale === 1 ? "application has" : "applications have"} had no reply for ${s.ghost_days}+ days.</b> Close them as “No response” so the list stays about live ones.</span><button data-closestale>Close ${s.stale}</button></div>` : ""}
     ${noOutcomes ? `<div class="todo"><span>All ${s.total} are still at “Applied”. If any of them replied, open it and set the stage. The tables below only become useful once outcomes are recorded.</span></div>` : ""}
-    ${s.median_pay ? `<p>Typical pay of jobs you applied to: <b>${money(s.median_pay)}/mo</b> <span class="muted">(median of those that state pay; hourly rates counted as full-time). The “Min pay” filter in the Inbox raises this.</span></p>` : ""}
+    ${s.median_pay ? `<p>Typical pay of jobs you applied to: <b>${money(s.median_pay)}/mo</b> <span class="muted">(median of those that state pay; hourly rates counted as full-time). The “Pay” filter in the Inbox raises this.</span></p>` : ""}
     ${table("By pay", s.by_pay)}${table("By track", s.by_track)}${table("By source", s.by_source, r => srcName(r.name))}
     <div class="actions"><a href="/api/export.csv"><button>Export CSV</button></a></div>
   </div>`;
@@ -750,9 +823,6 @@ function switchView(v) { state.status = v; state.sel = null; state.job = null; s
 function saveHash() { history.replaceState(null, "", "#" + state.status + (state.sel ? "/" + state.sel : "")); }
 $("#nav").addEventListener("click", e => { const b = e.target.closest("[data-view]"); if (b) switchView(b.dataset.view); });
 $("#stageChips").addEventListener("click", e => { const b = e.target.closest("[data-stage]"); if (b) { state.stage = b.dataset.stage; load(); } });
-$("#track").onchange = e => { state.track = e.target.value; load(); };
-$("#source").onchange = e => { state.source = e.target.value; load(); };
-$("#minpay").onchange = e => { state.minpay = e.target.value; store.set("minpay", state.minpay); load(); };
 $("#sort").onchange = e => { state.sort = e.target.value; store.set("sort", state.sort); load(); };
 $("#all").onchange = e => { state.all = e.target.checked; load(); };
 let qTimer; $("#q").oninput = e => { clearTimeout(qTimer); qTimer = setTimeout(() => { state.q = e.target.value; load(); }, 300); };
@@ -760,7 +830,11 @@ let qTimer; $("#q").oninput = e => { clearTimeout(qTimer); qTimer = setTimeout((
 document.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector("dialog[open]")) return;
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-  if (e.key === "Escape") { if (typing) e.target.blur(); else if (state.sel) select(null); return; }
+  if (e.key === "Escape") {
+    if (msOpen) { const k = msOpen; toggleMs(k); msEl(k).querySelector("button").focus(); }
+    else if (typing) e.target.blur(); else if (state.sel) select(null);
+    return;
+  }
   if (typing) return;
   const k = e.key.toLowerCase(), i = state.jobs.findIndex(j => j.id === state.sel);
   if (k === "j" || k === "arrowdown" || k === "k" || k === "arrowup") {
@@ -1019,7 +1093,7 @@ $("#setSave").onclick = async () => {
     const welcome = S.welcome;
     $("#setDlg").close(); $("#linksBody").innerHTML = "";
     toast(welcome ? "Saved. Now pick what to fetch." : "Saved. Rankings updated.");
-    state.sel = null; state.job = null; state.track = ""; await load();
+    state.sel = null; state.job = null; await load();
     if (welcome) openFetch();
   } catch (err) {
     $("#setErr").textContent = err.message;

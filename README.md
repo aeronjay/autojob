@@ -151,7 +151,7 @@ The dashboard has four views: **Inbox**, **Saved**, **Applications** and **Skipp
 3. Edit the reply (it autosaves), click **Copy reply & open**, paste it on the site and send.
 4. **Mark applied**. The job moves to Applications and the next job opens. Wrong click? The toast has **Undo**.
 
-Filters: job type, source, **Min pay** (hides jobs whose stated pay is lower; jobs that don't state pay stay) and sort by best match, newest or highest pay.
+Filters: **Track**, **Source** and **Pay** each open a checklist, so you can tick several at once (e.g. Automation + Executive Assistant, from OnlineJobs.ph + Indeed, paying $1,000–1,999/mo or not stated). Nothing ticked means all. Pay ranges use the middle of a job's stated range in USD per month. Your picks are remembered. Sort by best match, newest or highest pay.
 
 Keyboard: `J`/`K` next/previous, `O` open, `G` ask Claude, `C` copy, `A` applied, `S` save, `X` skip, `/` search, `F` fetch.
 
