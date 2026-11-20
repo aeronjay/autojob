@@ -1,14 +1,24 @@
-# autojob settings. Edit freely, then run `python autojob.py rescore` (or just fetch again).
+# autojob settings and defaults.
+#
+# Most people never need to open this file: the dashboard's Settings button lets each person
+# turn job types on/off, edit their search terms, add their own, and pick which sites to fetch.
+# Those choices are saved in data/jobs.db and override what's written here.
+# Edit this file to change the built-in defaults, then run `python autojob.py rescore` (or just fetch again).
 
 # ---------------------------------------------------------------------------
-# Tracks: what kinds of jobs you want.
-#   search   = terms typed into OnlineJobs.ph and Himalayas search (each one is a search).
-#   keywords = extra scoring words. Search terms count for scoring too.
-# A job gets title_weight points per term in its title, body_weight if only in
-# the description, and is assigned to whichever track scores highest.
+# Job types ("tracks"): what kinds of jobs to look for and how to rank them.
+#   label    = name shown in the dashboard.
+#   kind     = "remote" (work from the Philippines) or "abroad" (move to another country:
+#              ranked by visa sponsorship instead of "open to PH", fetched from teaching-abroad sites).
+#   enabled  = on by default for a new user (each person can change it in Settings).
+#   search   = terms typed into the sites' search boxes (each one is a search). They count for ranking too.
+#   keywords = extra ranking words.
+# A job gets title_weight points per term found in its title, body_weight if only in the
+# description, and is filed under whichever job type scores highest.
 # ---------------------------------------------------------------------------
 [tracks.automation]
 label = "Automation / AI VA"
+enabled = true
 search = [
   "zapier", "n8n", "make.com", "workflow automation", "automation specialist", "gohighlevel",
   "ai automation", "chatgpt", "ai assistant", "airtable", "web scraping", "python",
@@ -20,20 +30,59 @@ keywords = [
 ]
 
 [tracks.specialized_va]
-label = "Specialized VA"
+label = "Tech / Lead Gen VA"
+enabled = true
+search = ["lead generation", "web research", "hubspot", "wordpress", "tech virtual assistant"]
+keywords = [
+  "virtual assistant", "lead gen", "lead research", "data research", "web research", "data scraping",
+  "prospect", "list building", "data entry", "crm", "website", "web assistant", "technical va",
+  "tech va", "tech support", "spreadsheet", "google sheets",
+]
+
+[tracks.executive_assistant]
+label = "Executive Assistant"
+enabled = true
 search = [
-  "shopify", "ecommerce", "amazon", "lead generation", "web research", "hubspot",
-  "wordpress", "tech virtual assistant",
+  "executive assistant", "personal assistant", "administrative assistant", "admin assistant",
+  "calendar management", "inbox management",
 ]
 keywords = [
-  "virtual assistant", "e-commerce", "product listing", "order management", "lead gen",
-  "lead research", "data research", "web research", "data scraping", "prospect", "list building", "data entry", "crm", "website",
-  "web assistant", "technical va", "tech va", "tech support", "customer support",
-  "spreadsheet", "google sheets",
+  "calendar", "inbox", "email management", "scheduling", "schedule meetings", "travel arrangements",
+  "travel booking", "ceo", "founder", "executive", "admin support", "administrative support",
+  "google workspace", "notion", "asana", "clickup", "slack", "meeting notes", "minutes",
+  "expense reports", "correspondence", "document management", "chief of staff", "gatekeeping",
+]
+
+[tracks.ecommerce]
+label = "E-commerce Assistant"
+enabled = true
+search = [
+  "ecommerce assistant", "ecommerce virtual assistant", "shopify", "amazon virtual assistant",
+  "product listing", "ecommerce",
+]
+keywords = [
+  "e-commerce", "shopify", "woocommerce", "amazon", "seller central", "etsy", "ebay", "walmart",
+  "order processing", "order management", "order fulfillment", "fulfillment", "inventory",
+  "product upload", "listing optimization", "listings", "returns", "refunds", "dropshipping",
+  "klaviyo", "store", "online store", "customer service",
+]
+
+[tracks.product_research]
+label = "Product Researcher"
+enabled = true
+search = [
+  "product research", "product researcher", "amazon product research", "market research",
+  "product sourcing", "product hunting",
+]
+keywords = [
+  "jungle scout", "helium 10", "keepa", "alibaba", "1688", "supplier", "suppliers", "sourcing",
+  "winning products", "niche research", "trend research", "competitor research", "competitor analysis",
+  "fba", "private label", "dropshipping", "market analysis", "data analysis", "spreadsheet",
 ]
 
 [tracks.dev]
 label = "Software Dev"
+enabled = true
 search = [
   "web developer", "full stack", "react", "next.js", "node.js", "python developer",
   "software engineer", "backend developer",
@@ -44,15 +93,91 @@ keywords = [
   "spring boot", "fastapi", "postgres", "supabase", "aws", "rag", "ai engineer",
 ]
 
+[tracks.math_teacher_abroad]
+label = "Math Teacher (abroad)"
+kind = "abroad"
+enabled = true
+# For abroad job types, at least one search term must appear in the post (the subject).
+search = [
+  "math teacher", "mathematics teacher", "maths teacher", "high school math", "secondary math",
+  "mathematics", "maths", "math", "algebra", "geometry", "calculus",
+]
+keywords = [
+  "statistics", "igcse", "a-level",
+  "ib diploma", "ib", "ap calculus", "cambridge", "secondary", "high school", "middle school",
+  "grade 9", "grade 10", "grade 11", "grade 12", "stem",
+]
+
+# --- More presets, off by default. Each person can switch them on in Settings. ---
+
+[tracks.general_va]
+label = "General / Admin VA"
+enabled = false
+search = ["virtual assistant", "general virtual assistant", "data entry", "admin virtual assistant"]
+keywords = [
+  "virtual assistant", "data entry", "admin", "administrative", "email management", "calendar",
+  "google sheets", "excel", "research", "filing", "transcription",
+]
+
+[tracks.customer_support]
+label = "Customer Support"
+enabled = false
+search = ["customer support", "customer service", "chat support", "email support", "technical support"]
+keywords = [
+  "zendesk", "gorgias", "freshdesk", "intercom", "help desk", "helpdesk", "tickets", "ticketing",
+  "live chat", "csr", "customer experience", "client support", "phone support",
+]
+
+[tracks.social_media]
+label = "Social Media / Content"
+enabled = false
+search = ["social media manager", "social media assistant", "content creator", "community manager"]
+keywords = [
+  "instagram", "tiktok", "facebook", "linkedin", "canva", "content calendar", "captions",
+  "engagement", "reels", "scheduling posts", "meta business suite", "hootsuite", "buffer",
+]
+
+[tracks.writing]
+label = "Writing / Copywriting"
+enabled = false
+search = ["content writer", "copywriter", "blog writer", "seo writer"]
+keywords = ["seo", "blog", "articles", "copywriting", "editing", "proofreading", "newsletter", "email copy", "wordpress"]
+
+[tracks.design_video]
+label = "Graphic Design / Video"
+enabled = false
+search = ["graphic designer", "video editor", "canva designer", "thumbnail designer"]
+keywords = [
+  "canva", "photoshop", "illustrator", "figma", "premiere pro", "after effects", "capcut",
+  "davinci", "youtube", "thumbnails", "motion graphics", "branding",
+]
+
+[tracks.bookkeeping]
+label = "Bookkeeping"
+enabled = false
+search = ["bookkeeper", "bookkeeping", "accounting assistant", "quickbooks"]
+keywords = ["quickbooks", "xero", "accounts payable", "accounts receivable", "reconciliation", "invoicing", "payroll", "financial statements"]
+
+[tracks.teacher_abroad]
+label = "Teacher, any subject (abroad)"
+kind = "abroad"
+enabled = false
+search = ["teacher", "science teacher", "english teacher", "primary teacher", "teaching"]
+keywords = [
+  "teacher", "teaching", "classroom", "curriculum", "lesson plans", "igcse", "ib", "cambridge",
+  "primary", "secondary", "high school", "international school", "science", "english",
+]
+
 [scoring]
 title_weight = 4
 body_weight = 1
-# Points added when the job clearly accepts applicants from the Philippines / worldwide.
+# Points added when the job clearly accepts applicants from the Philippines / worldwide
+# (for "abroad" job types: when the post offers visa sponsorship).
 eligible_bonus = 6
-# Titles with these words are pushed down (you are early-career as a dev).
+# Titles with these words are pushed down (for early-career people; can be switched off in Settings).
 demote_title = ["senior", "sr.", "staff", "principal", "team lead", "tech lead", "lead engineer", "lead developer", "head of", "director", "vp ", "manager", "architect"]
 demote_points = 5
-# Titles with these words are hidden completely.
+# Titles with these words are hidden completely (not applied to "abroad" job types).
 exclude_title = ["on-site", "onsite", "on site", "hybrid", "nurse", "driver", "teacher", "tutor", "sales closer", "cold caller", "appointment setter"]
 # Jobs scoring below this are hidden by default in the dashboard (toggle "show all" to see them).
 min_score = 8
@@ -74,7 +199,7 @@ low_usd_month = 500     # below this: -low_penalty points
 low_penalty = 4
 hours_per_month = 160   # used to convert hourly rates
 
-[pay.rates]             # rough conversion to USD; only PHP matters much on OnlineJobs.ph
+[pay.rates]             # rough conversion to USD; see engine/pay.py for the full list
 php = 0.0172            # 1 PHP in USD (about 58 PHP per USD)
 
 # ---------------------------------------------------------------------------
@@ -85,7 +210,7 @@ follow_up_days = 5      # an application with no reply is flagged for a follow-u
 ghost_days = 21         # after this many days with no reply it can be closed as "No response"
 
 # ---------------------------------------------------------------------------
-# Location eligibility. Many "remote" jobs are US/EU-only; these rules sort them out.
+# Location eligibility for "remote" job types. Many "remote" jobs are US/EU-only; these rules sort them out.
 # ---------------------------------------------------------------------------
 [location]
 # A job's location field containing any of these = you can apply.
@@ -100,9 +225,30 @@ blocked_phrases = [
 ]
 
 # ---------------------------------------------------------------------------
-# Sources. Set enabled = false to skip one.
+# Visa sponsorship, for "abroad" job types. A post mentioning one of `sponsor` gets a
+# "visa sponsorship" tag and the eligible bonus; one mentioning `no_sponsor` is hidden.
 # ---------------------------------------------------------------------------
-# OnlineJobs.ph and Himalayas search every track's `search` terms.
+[abroad]
+sponsor = [
+  "visa sponsorship", "visa sponsored", "sponsor your visa", "sponsorship available", "visa provided",
+  "visa support", "visa assistance", "visa and work permit", "work visa", "work permit", "visa processing",
+  "visa costs", "visa fees", "j-1", "j1 visa", "h-1b", "h1b", "relocation package", "relocation allowance",
+  "relocation support", "flights", "airfare", "annual flight", "housing allowance", "accommodation provided",
+  "free accommodation", "international candidates", "overseas candidates", "overseas applicants",
+  "international applicants", "international hires", "overseas hire",
+]
+no_sponsor = [
+  "no visa sponsorship", "not able to sponsor", "unable to sponsor", "cannot sponsor", "can not sponsor",
+  "will not sponsor", "do not sponsor", "does not sponsor", "not offer sponsorship", "no sponsorship",
+  "sponsorship is not available", "must have the right to work", "must already have the right to work",
+  "must already hold", "local hire only", "local hires only", "locals only", "local candidates only",
+  "only open to citizens", "must be a citizen",
+]
+
+# ---------------------------------------------------------------------------
+# Sites. Each person can switch these on/off in Settings and pick them per fetch.
+# ---------------------------------------------------------------------------
+# OnlineJobs.ph and Himalayas search every chosen "remote" job type's `search` terms.
 # Paging stops early once a page has nothing new, so daily runs stay short;
 # max_pages only matters on the first run or after a long break.
 [sources.onlinejobs]
@@ -135,8 +281,16 @@ enabled = true
 [sources.workingnomads]
 enabled = true
 
-# ---------------------------------------------------------------------------
-# Search links shown in the dashboard for sites that block bots (Indeed etc.).
-# ---------------------------------------------------------------------------
-[links]
-keywords = ["virtual assistant automation", "zapier", "n8n", "shopify virtual assistant", "lead generation", "full stack developer", "react developer"]
+# Teaching-abroad boards, used by "abroad" job types.
+[sources.teachaway]
+enabled = true
+# Subject pages to read: the last part of teachaway.com/teaching-jobs-abroad/all-countries/all-positions/<subject>/any-level
+subjects = ["math"]
+max_pages = 3          # 20 jobs per page
+delay_seconds = 2
+
+[sources.seekteachers]
+enabled = true
+categories = [919]     # 919 = Secondary, 918 = Primary, 921 = IB (see seekteachers.com/jobs.asp)
+max_pages = 4          # 20 jobs per page, newest first
+delay_seconds = 2

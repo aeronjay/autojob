@@ -18,7 +18,7 @@ STAGES = {"applied": "Applied", "replied": "Replied", "interview": "Interview", 
 WAITING = ("applied", "replied", "interview")  # stages where a next action can be due
 # List rows leave out the long text fields; the detail endpoint returns everything.
 LIGHT = ("id, source, url, title, company, location, salary, job_type, posted_at, track, score, eligible, "
-         "status, stage, due_on, followups, pay_min, pay_max, first_seen, applied_at, manual, "
+         "status, stage, due_on, followups, pay_min, pay_max, first_seen, applied_at, manual, visa, "
          "(COALESCE(draft,'')<>'') AS has_draft, (COALESCE(notes,'')<>'') AS has_notes")
 DUE = "status='applied' AND stage IN ('applied','replied','interview') AND due_on IS NOT NULL AND due_on<=?"
 MANUAL_SOURCES = {"linkedin.": "linkedin", "indeed.": "indeed", "upwork.": "upwork", "jobstreet.": "jobstreet",
@@ -92,8 +92,12 @@ def jobs():
     limit = 400
     return jsonify(jobs=[dict(r) for r in rows[:limit]], total=len(rows), counts=counts, stage_counts=stage_counts,
                    sources=sources_, tracks={k: v["label"] for k, v in cfg["tracks"].items()},
+                   track_kinds={k: v["kind"] for k, v in cfg["catalog"].items()},
+                   track_labels={k: v["label"] for k, v in cfg["catalog"].items()},
+                   source_names={k: v["label"] for k, v in sources.INFO.items()},
                    stages=list(STAGES.items()), last_fetch=last_fetch, today=today(),
-                   follow_up_days=core.tracking(cfg)["follow_up_days"], profile_todos=drafting.profile_todos())
+                   follow_up_days=core.tracking(cfg)["follow_up_days"], profile_todos=drafting.profile_todos(),
+                   setup_done=cfg["setup_done"])
 
 
 @app.get("/api/jobs/<jid>")
@@ -105,7 +109,19 @@ def job(jid):
         return jsonify(error="Job not found"), 404
     events = [dict(e) for e in conn.execute("SELECT at, text FROM events WHERE job_id=? ORDER BY id DESC", (jid,))]
     conn.close()
-    return jsonify(job=dict(r), events=events)
+    return jsonify(job=dict(r), events=events, why=why(r))
+
+
+def why(job):
+    """The score breakdown shown under "Why this score?"."""
+    cfg = core.load_config()
+    out = scoring.score_job(job, cfg, explain=True)["why"]
+    s = cfg["scoring"]
+    posted = job["posted_at"] or (job["first_seen"] or "")[:16].replace("T", " ")
+    fresh = (datetime.now(timezone.utc) - timedelta(days=s.get("fresh_days", 2))).strftime("%Y-%m-%d %H:%M")
+    if job["status"] == "new" and posted >= fresh:
+        out.append({"points": s.get("fresh_bonus", 3), "text": f"Posted in the last {s.get('fresh_days', 2)} days (early applicants get read)"})
+    return out
 
 
 @app.post("/api/jobs")
@@ -137,7 +153,7 @@ def add():
     if created:
         r = scoring.score_job(row, core.load_config())
         conn.execute("UPDATE jobs SET track=:track, score=:score, eligible=:eligible, hidden=:hidden, "
-                     "pay_min=:pay_min, pay_max=:pay_max, detailed=1 WHERE id=:id", {**r, "id": jid})
+                     "pay_min=:pay_min, pay_max=:pay_max, visa=:visa, detailed=1 WHERE id=:id", {**r, "id": jid})
         db.add_event(conn, jid, "Added by hand")
     conn.commit()
     conn.close()
@@ -208,18 +224,24 @@ def draft(jid):
         job = get_job()
         if not job:
             return jsonify(error="Job not found"), 404
-        if job["source"] == "onlinejobs" and not job["detailed"]:
+        cfg = core.load_config()
+        if job["source"] in sources.DETAILS and not job["detailed"]:
             conn.execute("UPDATE jobs SET description=?, detailed=1 WHERE id=?",
-                         (sources.olj_details(job["url"]), jid))
+                         (sources.DETAILS[job["source"]](job["url"]), jid))
+            # The full post can change the ranking (visa details, more keywords).
+            conn.execute("UPDATE jobs SET track=:track, score=:score, eligible=:eligible, hidden=:hidden, "
+                         "pay_min=:pay_min, pay_max=:pay_max, visa=:visa WHERE id=:id",
+                         {**scoring.score_job(get_job(), cfg), "id": jid})
             conn.commit()
             job = get_job()
+        track = cfg["catalog"].get(job["track"])
         if body.get("kind") == "followup":
             days = (date.today() - date.fromisoformat(job["applied_at"][:10])).days if job["applied_at"] else 0
-            text = drafting.followup(job, days, body.get("extra", ""))
+            text = drafting.followup(job, days, body.get("extra", ""), track)
             conn.execute("UPDATE jobs SET followup_draft=? WHERE id=?", (text, jid))
             conn.commit()
             return jsonify(followup_draft=text, description=job["description"])
-        reply, note = drafting.generate(job, body.get("extra", ""))
+        reply, note = drafting.generate(job, body.get("extra", ""), track)
         conn.execute("UPDATE jobs SET draft=?, note=? WHERE id=?", (reply, note, jid))
         conn.commit()
         return jsonify(draft=reply, note=note, description=job["description"])
@@ -246,7 +268,7 @@ def stats():
     due = conn.execute(f"SELECT COUNT(*) FROM jobs WHERE {DUE}", (today(),)).fetchone()[0]
     conn.close()
     week_ago = (date.today() - timedelta(days=7)).isoformat()
-    labels = {k: v["label"] for k, v in cfg["tracks"].items()}
+    labels = {k: v["label"] for k, v in cfg["catalog"].items()}
 
     def breakdown(key):
         groups = {}
@@ -308,12 +330,13 @@ def export():
 FETCH = {"running": False, "log": [], "summary": None, "error": None}
 
 
-def run_fetch():
+def run_fetch(tracks, source_names):
     def log(msg):
         print(msg)
         FETCH["log"].append(msg.strip())
     try:
-        FETCH["summary"] = [{"source": s, "found": f, "new": n, "error": e} for s, f, n, e in core.fetch_all(log)]
+        FETCH["summary"] = [{"source": s, "found": f, "new": n, "error": e}
+                            for s, f, n, e in core.fetch_all(log, tracks, source_names)]
     except Exception as e:
         FETCH["error"] = str(e)
     finally:
@@ -322,9 +345,19 @@ def run_fetch():
 
 @app.post("/api/fetch")
 def fetch():
+    """Body: {"tracks": [...], "sources": [...]} limits the run; missing = every enabled one."""
+    b = request.get_json(silent=True) or {}
+    tracks = b.get("tracks") if isinstance(b.get("tracks"), list) else None
+    source_names = b.get("sources") if isinstance(b.get("sources"), list) else None
+    if tracks is not None and not tracks:
+        return jsonify(error="Pick at least one job type."), 400
+    if source_names is not None and not source_names:
+        return jsonify(error="Pick at least one site."), 400
+    if tracks is not None and source_names is not None:
+        core.save_fetch_choice(tracks, source_names)
     if not FETCH["running"]:
         FETCH.update(running=True, log=[], summary=None, error=None)
-        threading.Thread(target=run_fetch, daemon=True).start()
+        threading.Thread(target=run_fetch, args=(tracks, source_names), daemon=True).start()
     return fetch_status()
 
 
@@ -336,4 +369,48 @@ def fetch_status():
 
 @app.get("/api/links")
 def links():
-    return jsonify(sources.search_links(core.load_config()["links"]["keywords"]))
+    return jsonify(sources.search_links(core.load_config()["tracks"]))
+
+
+# --- Settings: job types, sites, ranking, profile ------------------------------
+
+@app.get("/api/settings")
+def get_settings():
+    cfg = core.load_config()
+    defaults = core.load_defaults()
+    tracks = [{"id": k, **{f: t.get(f) for f in ("label", "kind", "search", "keywords", "enabled", "custom")},
+               "default": ({"label": k, "kind": "remote", "search": [], "keywords": [], **defaults["tracks"][k]}
+                           if k in defaults.get("tracks", {}) else None)}
+              for k, t in cfg["catalog"].items()]
+    srcs = [{"id": k, **info, "enabled": cfg["sources"].get(k, {}).get("enabled", True)} for k, info in sources.INFO.items()]
+    s = cfg["scoring"]
+    return jsonify(tracks=tracks, sources=srcs, setup_done=cfg["setup_done"], fetch=cfg["fetch_choice"],
+                   scoring={"min_score": s["min_score"], "max_age_days": s.get("max_age_days", 14),
+                            "demote_senior": bool(s["demote_title"])})
+
+
+@app.post("/api/settings")
+def post_settings():
+    b = request.get_json(silent=True) or {}
+    tracks = b.get("tracks") or {}
+    if not any(isinstance(t, dict) and t.get("enabled") for t in tracks.values()):
+        return jsonify(error="Turn on at least one job type."), 400
+    for name, t in tracks.items():
+        if isinstance(t, dict) and t.get("enabled") and not t.get("search"):
+            return jsonify(error=f"“{t.get('label') or name}” needs at least one search term."), 400
+    core.save_settings(b)
+    return jsonify(ok=True)
+
+
+@app.get("/api/profile")
+def get_profile():
+    return jsonify(text=drafting.read_profile(), todos=drafting.profile_todos())
+
+
+@app.post("/api/profile")
+def post_profile():
+    text = (request.get_json(silent=True) or {}).get("text")
+    if not isinstance(text, str) or not text.strip():
+        return jsonify(error="The profile can't be empty."), 400
+    drafting.save_profile(text)
+    return jsonify(ok=True, todos=drafting.profile_todos())

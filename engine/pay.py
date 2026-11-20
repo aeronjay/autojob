@@ -6,18 +6,40 @@ Returns (low, high) in whole USD per month, or (None, None) when the text has no
 import re
 
 # Rough conversion to USD. Override any of these under [pay.rates] in config.toml.
-RATES = {"usd": 1.0, "php": 1 / 58, "aud": 0.65, "cad": 0.72, "gbp": 1.27, "eur": 1.08, "sgd": 0.75, "inr": 0.012, "pln": 0.25}
+RATES = {"usd": 1.0, "php": 1 / 58, "aud": 0.65, "cad": 0.72, "gbp": 1.27, "eur": 1.08, "sgd": 0.75, "inr": 0.012, "pln": 0.25,
+         # Common for teaching jobs abroad:
+         "aed": 0.272, "sar": 0.267, "qar": 0.275, "kwd": 3.25, "omr": 2.6, "bhd": 2.65, "thb": 0.029, "cny": 0.14,
+         "hkd": 0.128, "jpy": 0.0067, "krw": 0.00073, "vnd": 0.00004, "myr": 0.22, "idr": 0.000063, "nzd": 0.6,
+         "twd": 0.031, "chf": 1.13, "egp": 0.02}
 
 CURRENCIES = [
     ("usd", r"usd|us\$"),
     ("php", r"php|₱|peso|\bp\d"),
     ("inr", r"inr|₹|rupee"),
     ("sgd", r"sgd|s\$"),
+    ("hkd", r"hkd|hk\$"),
+    ("nzd", r"nzd|nz\$"),
+    ("twd", r"twd|nt\$"),
     ("aud", r"aud|au?\$"),
     ("cad", r"cad|ca?\$"),
     ("gbp", r"gbp|£"),
     ("eur", r"eur|€"),
     ("pln", r"pln|zł"),
+    ("aed", r"\baed\b|dirham"),
+    ("qar", r"\bqar\b|qatari"),
+    ("sar", r"\bsar\b|riyal|\bsr\s?\d"),
+    ("kwd", r"\bkwd\b|kuwaiti|\bkd\s?\d"),
+    ("omr", r"\bomr\b|omani"),
+    ("bhd", r"\bbhd\b|bahraini"),
+    ("thb", r"\bthb\b|baht|฿"),
+    ("cny", r"\bcny\b|\brmb\b|yuan"),
+    ("jpy", r"\bjpy\b|\byen\b"),
+    ("krw", r"\bkrw\b|₩|\bwon\b"),
+    ("vnd", r"\bvnd\b|₫|\bdong\b"),
+    ("myr", r"\bmyr\b|ringgit|\brm\s?\d"),
+    ("idr", r"\bidr\b|rupiah"),
+    ("chf", r"\bchf\b"),
+    ("egp", r"\begp\b"),
 ]
 
 PERIODS = [
@@ -68,13 +90,14 @@ def parse(text, source="", pay_cfg=None):
         currency, period = "php", "month"
     if currency is None and source == "onlinejobs" and period is None and lo >= 5000:
         return None, None  # "12000" alone could be pesos or dollars; don't guess
+    rate = {**RATES, **pay_cfg.get("rates", {})}.get(currency or "usd", 1.0)
     if period is None:  # bare number: guess from its size
         if currency == "php":
             period = "year" if lo >= 400000 else "month" if lo >= 5000 else "day" if lo >= 300 else "hour"
-        else:
-            period = "hour" if lo < 50 else "month" if lo < 15000 else "year"
+        else:  # judged in USD, so "VND 30,000,000" and "$30,000" aren't treated alike
+            usd = lo * rate
+            period = "hour" if usd < 50 else "month" if usd < 15000 else "year"
 
-    rate = {**RATES, **pay_cfg.get("rates", {})}.get(currency or "usd", 1.0)
     per_month = {"hour": pay_cfg.get("hours_per_month", 160), "day": 22, "week": 4.33, "month": 1, "year": 1 / 12}[period]
     lo, hi = (round(x * rate * per_month) for x in (lo, hi))
     if hi < 30 or hi > 60000:  # not a believable salary; probably some other number

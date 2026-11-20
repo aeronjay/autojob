@@ -2,6 +2,7 @@
 source, url, title, company, location, salary, job_type, posted_at, description, tags
 """
 import html
+import json
 import re
 import time
 import xml.etree.ElementTree as ET
@@ -270,6 +271,154 @@ def weworkremotely(cfg, ctx):
     return out
 
 
+# --- Teaching abroad ---------------------------------------------------------------
+
+TA_BASE = "https://www.teachaway.com"
+COUNTRIES = {"AE": "United Arab Emirates", "SA": "Saudi Arabia", "QA": "Qatar", "KW": "Kuwait", "OM": "Oman", "BH": "Bahrain",
+             "CN": "China", "HK": "Hong Kong", "TW": "Taiwan", "JP": "Japan", "KR": "South Korea", "VN": "Vietnam",
+             "TH": "Thailand", "MY": "Malaysia", "SG": "Singapore", "ID": "Indonesia", "KH": "Cambodia", "MN": "Mongolia",
+             "US": "United States", "CA": "Canada", "GB": "United Kingdom", "IE": "Ireland", "AU": "Australia",
+             "NZ": "New Zealand", "EG": "Egypt", "MA": "Morocco", "TR": "Turkey", "KZ": "Kazakhstan", "UZ": "Uzbekistan",
+             "MX": "Mexico", "BR": "Brazil", "CO": "Colombia", "ES": "Spain", "IT": "Italy", "DE": "Germany", "PH": "Philippines"}
+
+
+def teachaway(cfg, ctx):
+    """Teach Away: international-school and government teaching jobs, most hiring from overseas."""
+    out = []
+    for subject in cfg.get("subjects", ["math"]):
+        for page in range(1, cfg.get("max_pages", 3) + 1):
+            url = f"{TA_BASE}/teaching-jobs-abroad/all-countries/all-positions/{subject}/any-level"
+            try:
+                jobs = parse_teachaway(get(url, params={"page": page} if page > 1 else None).text)
+            except requests.RequestException as e:
+                ctx["warn"](f"{subject} page {page}: {e}")
+                break
+            out += jobs
+            time.sleep(cfg.get("delay_seconds", 2))
+            if not keep_paging(jobs, 20, ctx, by_date=False):
+                break
+    return out
+
+
+def parse_teachaway(page):
+    # Each listing is a rendered card; its country code only appears in the page's embedded data,
+    # in the same order as the cards.
+    parts = re.split(r'<a class="text-xl font-bold[^"]*" href="(/teaching-jobs-abroad/[^"]+)">', page)
+    cards = [(parts[i], parts[i + 1]) for i in range(1, len(parts) - 1, 2)]
+    places = re.findall(r'"countryCode":"([A-Z]{2})","countryName":[^,]*,"locality":"([^"]*)"', page.replace('\\"', '"'))
+    jobs = []
+    for n, (href, card) in enumerate(cards):
+        card = re.sub(r"<(svg|script)[^>]*>.*?</\1>", "", card, flags=re.S)
+        texts = [t for t in (html.unescape(x).strip() for x in re.split(r"<[^>]+>", card)) if t]
+        if "View Details" in texts:
+            texts = texts[:texts.index("View Details")]
+        if not texts:
+            continue
+        title, school = texts[0], texts[1] if len(texts) > 1 else ""
+        locality = texts[2] if len(texts) > 2 else ""
+        country = ""
+        if len(places) == len(cards):
+            code, locality = places[n][0], places[n][1] or locality
+            country = COUNTRIES.get(code, code)
+        location = ", ".join(x for x in (locality, country) if x)
+        details = texts[3:]
+        jobs.append({
+            "source": "teachaway",
+            "url": TA_BASE + href,
+            "title": title,
+            "company": school,
+            "location": location,
+            "description": "\n".join([f"School: {school}", f"Location: {location}", *details]),
+            "posted_at": "",
+        })
+    return jobs
+
+
+SEEK_BASE = "https://www.seekteachers.com"
+
+
+def seekteachers(cfg, ctx):
+    """Seek Teachers: international schools (China, Middle East, Asia), newest first."""
+    out = []
+    for cat in cfg.get("categories", [919]):
+        for page in range(1, cfg.get("max_pages", 4) + 1):
+            params = {"category_id": cat, **({"page": page} if page > 1 else {})}
+            try:
+                jobs = parse_seek(get(f"{SEEK_BASE}/jobs.asp", params=params).text)
+            except requests.RequestException as e:
+                ctx["warn"](f"category {cat} page {page}: {e}")
+                break
+            out += jobs
+            time.sleep(cfg.get("delay_seconds", 2))
+            if not keep_paging(jobs, 20, ctx, by_date=False):
+                break
+    return out
+
+
+def parse_seek(page):
+    jobs = []
+    for card in page.split('<div class="titlebar-listing clearfix"')[1:]:
+        link = re.search(r'href="(https://www\.seekteachers\.com/job-detail\.asp\?job_id=\d+)">\s*<span[^>]*>(.*?)</span>(.*?)</a>', card, re.S)
+        if not link:
+            continue
+        where = clean(link.group(3))
+        location = where.split(" in ", 1)[1] if " in " in where else where
+        blurb = re.search(r'<div class="margin-top">(.*?)</div>', card, re.S)
+        start = re.search(r"Start Date:</span>\s*<b>(.*?)</b>", card, re.S)
+        salary = re.search(r"<span><b>(.*?)</b>\s*</span>", card, re.S)
+        salary = clean(salary.group(1)) if salary else ""
+        jobs.append({
+            "source": "seekteachers",
+            "url": link.group(1),
+            "title": clean(link.group(2)),
+            "company": "",
+            "location": location,
+            "job_type": where.split(" in ", 1)[0] if " in " in where else "",
+            "salary": "" if "negotiable" in salary.lower() else salary,
+            "description": "\n".join(x for x in (clean(blurb.group(1)) if blurb else "",
+                                                 f"Start date: {clean(start.group(1))}" if start else "",
+                                                 f"Salary: {salary}" if salary else "") if x),
+            "posted_at": "",
+        })
+    return jobs
+
+
+def jobposting_details(url):
+    """Full post from a page's schema.org JobPosting data (Teach Away and many school sites)."""
+    page = get(url).text
+    for raw in re.findall(r'<script type="application/ld\+json"[^>]*>(.*?)</script>', page, re.S):
+        try:
+            d = json.loads(raw)
+        except ValueError:
+            continue
+        if isinstance(d, dict) and d.get("@type") == "JobPosting":
+            extra = []
+            addr = (d.get("jobLocation") or {}).get("address") or {}
+            if isinstance(addr, dict) and addr.get("addressCountry"):
+                extra.append(f"Location: {', '.join(x for x in (addr.get('addressLocality'), addr.get('addressCountry')) if x)}")
+            edu = (d.get("educationRequirements") or {})
+            if isinstance(edu, dict) and edu.get("credentialCategory"):
+                extra.append(f"Education required: {edu['credentialCategory']}")
+            exp = (d.get("experienceRequirements") or {})
+            if isinstance(exp, dict) and exp.get("monthsOfExperience"):
+                extra.append(f"Experience required: {exp['monthsOfExperience']} months")
+            return clean(d.get("description")) + ("\n\n" + "\n".join(extra) if extra else "")
+    raise RuntimeError("Couldn't read the full job post from that page. Open the job link instead.")
+
+
+def seek_details(url):
+    page = get(url).text
+    i = page.find("Job Description")
+    if i < 0:
+        raise RuntimeError("Couldn't read the full job post from that page. Open the job link instead.")
+    text = clean(re.sub(r"<!--|-->", " ", page[i:i + 40000]))
+    for end in ("Apply Now", "Apply for this job", "Similar Jobs", "Share this job", "Country Info"):
+        if end in text:
+            text = text[:text.index(end)]
+    text = re.sub(r"\n\s*(Save|Print)\s*(?=\n|$)", "", text.replace("Job Description", "", 2))
+    return re.sub(r"\n{3,}", "\n\n", text).strip()[:12000]
+
+
 SOURCES = {
     "onlinejobs": onlinejobs,
     "himalayas": himalayas,
@@ -278,21 +427,82 @@ SOURCES = {
     "remoteok": remoteok,
     "weworkremotely": weworkremotely,
     "workingnomads": workingnomads,
+    "teachaway": teachaway,
+    "seekteachers": seekteachers,
+}
+
+# What each site is, for the dashboard. kind: which job types it serves.
+INFO = {
+    "onlinejobs": {"label": "OnlineJobs.ph", "kind": "remote", "note": "The biggest board for Filipino VAs. Searches your job types' terms."},
+    "himalayas": {"label": "Himalayas", "kind": "remote", "note": "Remote jobs open to the Philippines. Searches your job types' terms."},
+    "jobicy": {"label": "Jobicy", "kind": "remote", "note": "Remote jobs, APAC and worldwide."},
+    "remotive": {"label": "Remotive", "kind": "remote", "note": "Remote jobs, mostly tech and support."},
+    "remoteok": {"label": "RemoteOK", "kind": "remote", "note": "Remote jobs, mostly tech."},
+    "weworkremotely": {"label": "We Work Remotely", "kind": "remote", "note": "Remote jobs, many US-only."},
+    "workingnomads": {"label": "Working Nomads", "kind": "remote", "note": "Remote jobs, mixed."},
+    "teachaway": {"label": "Teach Away", "kind": "abroad", "note": "International schools hiring teachers from overseas (Middle East, Asia, US J-1)."},
+    "seekteachers": {"label": "Seek Teachers", "kind": "abroad", "note": "International schools in China, the Middle East and Asia."},
+}
+
+# Sites whose search results are only a preview; the full post is read when you ask Claude.
+DETAILS = {"onlinejobs": olj_details, "teachaway": jobposting_details, "seekteachers": seek_details}
+# For these, new posts are read in full while fetching: visa / relocation details only appear there.
+DETAILS_ON_FETCH = {"teachaway", "seekteachers"}
+
+
+# --- One-click searches for sites that block automated fetching ----------------------
+
+def remote_links(kw):
+    q = quote_plus(kw)
+    return {
+        "OnlineJobs.ph": f"{OLJ_BASE}/jobseekers/jobsearch?jobkeyword={q}",
+        "LinkedIn": f"https://www.linkedin.com/jobs/search/?keywords={q}&location=Philippines&f_WT=2&f_TPR=r604800",
+        "Indeed PH": f"https://ph.indeed.com/jobs?q={q}&l=Remote&fromage=7",
+        "JobStreet": f"https://ph.jobstreet.com/{quote_plus(kw.replace(' ', '-'))}-jobs/remote",
+        "Upwork": f"https://www.upwork.com/nx/search/jobs/?q={q}&sort=recency",
+        "Freelancer": f"https://www.freelancer.com/jobs/?keyword={q}",
+        "PeoplePerHour": f"https://www.peopleperhour.com/freelance-jobs?q={q}",
+        "Reddit r/forhire": f"https://www.reddit.com/r/forhire/search/?q=%5BHiring%5D+{q}&restrict_sr=1&sort=new",
+        "Reddit r/buhaydigital": f"https://www.reddit.com/r/buhaydigital/search/?q={q}&restrict_sr=1&sort=new",
+    }
+
+
+def abroad_links(kw):
+    q = quote_plus(kw)
+    return {
+        "TES": f"https://www.tes.com/jobs/search?keywords={q}",
+        "LinkedIn": f"https://www.linkedin.com/jobs/search/?keywords={q}+visa+sponsorship&f_TPR=r2592000",
+        "Indeed": f"https://www.indeed.com/jobs?q={q}+visa+sponsorship&fromage=30",
+        "Reddit r/Internationalteachers": f"https://www.reddit.com/r/Internationalteachers/search/?q={q}&restrict_sr=1&sort=new",
+    }
+
+
+# Places to look that have no keyword search, or where a human has to check details.
+RESOURCES = {
+    "remote": [
+        ("VirtualStaff.ph", "https://www.virtualstaff.ph/en-ph/find-jobs", "Filipino VA marketplace, no middleman fees"),
+        ("Kalibrr (work from home)", "https://www.kalibrr.com/home/work_from_home/y/1", "Philippine job site, work-from-home roles"),
+        ("Reddit r/buhaydigital", "https://www.reddit.com/r/buhaydigital/", "Filipino freelancers' community: hiring posts, agency reviews, which sites are legit"),
+    ],
+    "abroad": [
+        ("Teach Away (math)", f"{TA_BASE}/teaching-jobs-abroad/all-countries/all-positions/math/any-level", "Fetched automatically too; check here for filters by country"),
+        ("Seek Teachers", f"{SEEK_BASE}/jobs.asp?category_id=919", "Fetched automatically too; secondary school jobs"),
+        ("Schrole", "https://www.schrole.com/", "International school jobs"),
+        ("Search Associates", "https://www.searchassociates.com/", "International school recruitment (paid membership, job fairs)"),
+        ("US J-1 teacher program", "https://j1visa.state.gov/programs/teacher", "Official US State Dept page: apply through a designated sponsor, never pay a random agent"),
+        ("DMW approved job orders", "https://dmw.gov.ph/approved-job-orders", "Philippine government list of legitimate overseas job orders and licensed agencies"),
+    ],
 }
 
 
-def search_links(keywords):
-    """One-click searches for sites that block automated fetching."""
-    links = []
-    for kw in keywords:
-        q = quote_plus(kw)
-        links.append({
-            "keyword": kw,
-            "OnlineJobs.ph": f"{OLJ_BASE}/jobseekers/jobsearch?jobkeyword={q}",
-            "Indeed PH": f"https://ph.indeed.com/jobs?q={q}&l=Remote&fromage=7",
-            "Indeed (worldwide)": f"https://www.indeed.com/jobs?q={q}+philippines&l=Remote&fromage=7",
-            "LinkedIn": f"https://www.linkedin.com/jobs/search/?keywords={q}&location=Philippines&f_WT=2&f_TPR=r604800",
-            "JobStreet": f"https://ph.jobstreet.com/{quote_plus(kw.replace(' ', '-'))}-jobs/remote",
-            "Upwork": f"https://www.upwork.com/nx/search/jobs/?q={q}&sort=recency",
-        })
-    return links
+def search_links(tracks):
+    """Per job type: one-click searches for its first few search terms on the sites that block bots."""
+    out = []
+    for name, t in tracks.items():
+        build = abroad_links if t["kind"] == "abroad" else remote_links
+        out.append({"track": name, "label": t["label"], "kind": t["kind"],
+                    # A list of pairs, not a dict: JSON would sort the keys and lose the priority order.
+                    "searches": [{"keyword": kw, "links": list(build(kw).items())} for kw in t["search"][:4]]})
+    kinds = {t["kind"] for t in tracks.values()}
+    resources = [{"name": n, "url": u, "note": note} for k in ("remote", "abroad") if k in kinds for n, u, note in RESOURCES[k]]
+    return {"tracks": out, "resources": resources}

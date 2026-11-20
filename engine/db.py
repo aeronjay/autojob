@@ -7,7 +7,7 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "jobs.db"
-VERSION = 2  # bump when the schema changes; connect() upgrades older databases
+VERSION = 3  # bump when the schema changes; connect() upgrades older databases
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -54,6 +54,7 @@ ADDED_COLUMNS = {
     "pay_min": "INTEGER",           # estimated USD per month, see pay.py
     "pay_max": "INTEGER",
     "manual": "INTEGER DEFAULT 0",  # 1 = added by hand (Indeed, LinkedIn, referrals...)
+    "visa": "INTEGER DEFAULT 0",    # 1 = the post mentions visa sponsorship / relocation
 }
 
 # Which "new" jobs belong in the inbox: relevant, applicable, and not stale.
@@ -153,11 +154,11 @@ def insert_jobs(conn, jobs):
         cur = conn.execute(
             """INSERT OR IGNORE INTO jobs
                (id, source, url, title, company, location, salary, job_type, posted_at, description, tags,
-                first_seen, manual)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                first_seen, manual, detailed)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (jid, j["source"], j["url"], j["title"], j.get("company", ""), j.get("location", ""),
              j.get("salary", ""), j.get("job_type", ""), j.get("posted_at", ""),
-             j.get("description", ""), j.get("tags", ""), now(), int(j.get("manual", 0))),
+             j.get("description", ""), j.get("tags", ""), now(), int(j.get("manual", 0)), int(j.get("detailed", 0))),
         )
         new += cur.rowcount
     conn.commit()

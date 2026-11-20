@@ -38,7 +38,7 @@
   button.good:hover { filter: brightness(1.08); background: var(--good); }
   button.ghost { background: transparent; box-shadow: none; }
   button:disabled { opacity: .55; cursor: wait; }
-  select, input[type=search], input[type=text], input[type=url], input[type=date] {
+  select, input[type=search], input[type=text], input[type=url], input[type=date], input[type=number] {
     background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; min-width: 0; }
   select:hover, input:hover { border-color: var(--faint); }
   ::placeholder { color: var(--faint); opacity: 1; }
@@ -159,13 +159,88 @@
   dialog::backdrop { background: rgba(10,12,16,.55); }
   dialog h2 { margin: 0 0 4px; font-size: 19px; }
   dialog form { display: grid; gap: 12px; margin-top: 16px; }
-  dialog label { display: grid; gap: 4px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
-  dialog label input, dialog label textarea { font-weight: 400; color: var(--text); }
+  dialog form label, .field { display: grid; gap: 4px; font-size: 13.5px; font-weight: 600; color: var(--muted); }
+  dialog form label input, dialog form label textarea, .field input, .field textarea, .field select { font-weight: 400; color: var(--text); }
+  dialog.wide { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 40px); padding: 0; }
+  dialog.wide[open] { display: flex; flex-direction: column; }
+  #setDlg[open], #fetchDlg[open] { height: min(820px, calc(100vh - 40px)); }
+  .tabs:focus { outline: none; }
+  .dlg-top { padding: 20px 24px 0; }
+  .dlg-body { padding: 16px 24px 20px; overflow-y: auto; flex: 1; min-height: 0; }
+  .dlg-foot { padding: 12px 24px; border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--raised); border-radius: 0 0 14px 14px; }
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-top: 14px; overflow-x: auto; }
+  .tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; box-shadow: none; padding: 8px 14px; color: var(--muted); }
+  .tabs button:hover { background: transparent; color: var(--text); }
+  .tabs button:focus-visible { outline-offset: -3px; }
+  .dlg-body:focus { outline: none; }
+  .tabs button.on { color: var(--text); border-bottom-color: var(--accent); font-weight: 600; }
+  .tabs .badge { background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 0 7px; font-size: 12px; margin-left: 6px; font-weight: 700; }
+  .welcome { background: var(--accent-soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; }
+  .welcome b { color: var(--accent-ink); }
+  .group-title { font-size: 13px; font-weight: 700; color: var(--muted); margin: 18px 0 8px; }
+  .group-title:first-child { margin-top: 0; }
+
+  /* Toggle switch */
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: none; cursor: pointer; }
+  .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .switch span { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background .15s; }
+  .switch span::before { content: ""; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .switch input:checked + span { background: var(--accent); }
+  .switch input:checked + span::before { transform: translateX(18px); }
+  .switch input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Job type / site cards in Settings */
+  .tcard { border: 1px solid var(--line); border-radius: 12px; background: var(--card); margin-bottom: 8px; }
+  .tcard.off { background: var(--raised); }
+  .tcard.off .t-name { color: var(--muted); }
+  .t-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+  .t-name { font-weight: 600; flex: 1; min-width: 0; }
+  .t-sub { display: block; font-size: 13px; color: var(--faint); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kind { font-size: 12px; padding: 1px 9px; border-radius: 999px; background: var(--chip); color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .kind.abroad { background: var(--warn-soft); color: var(--warn); }
+  .t-edit { padding: 12px 14px 14px; display: grid; gap: 12px; border-top: 1px solid var(--line-soft); }
+  .t-edit textarea { min-height: 76px; font-size: 14px; padding: 9px 12px; }
+  .t-edit .two { gap: 12px; }
+  .help { font-weight: 400; color: var(--faint); font-size: 12.5px; }
+  button.link { background: none; border: 0; box-shadow: none; padding: 0; color: var(--accent-ink); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+  button.link:hover { background: none; }
+  button.small { padding: 4px 10px; font-size: 13.5px; }
+  button.danger { color: var(--bad-ink); }
+  .rank-grid { display: grid; gap: 14px; max-width: 520px; }
+  .rank-grid .field input[type=number] { width: 120px; }
+  .how { margin: 0 0 18px; padding-left: 20px; line-height: 1.7; }
+  textarea.profile { min-height: 420px; font: 14px/1.6 ui-monospace, Consolas, monospace; }
+
+  /* Fetch picker */
+  .checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+  .check { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: var(--card); font-weight: 500; }
+  .check:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .check.dim { opacity: .5; }
+  .check input { margin-top: 4px; flex: none; }
+  .check small { display: block; color: var(--muted); font-size: 12.5px; font-weight: 400; line-height: 1.4; margin-top: 1px; }
+  .pick-head { display: flex; align-items: baseline; gap: 12px; margin: 16px 0 8px; }
+  .pick-head b { font-size: 14px; }
+  .pick-head span { margin-left: auto; font-size: 13.5px; }
+
+  /* Score breakdown */
+  .why { margin-top: 12px; }
+  .why ul { list-style: none; margin: 0; padding: 0; }
+  .why li { display: flex; gap: 12px; padding: 4px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+  .why li:last-child { border-bottom: 0; }
+  .why .pts { min-width: 34px; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--faint); }
+  .why .pts.plus { color: var(--good-ink); } .why .pts.minus { color: var(--bad-ink); }
+  .why .total { font-weight: 700; }
+  .caution { margin-top: 12px; border-left: 4px solid var(--warn); background: var(--warn-soft); border-radius: 10px; padding: 10px 14px; font-size: 14px; }
+  .res { display: grid; gap: 8px; margin-top: 8px; }
+  .res a { font-weight: 600; }
+  .res div { font-size: 14px; }
   dialog textarea { min-height: 120px; }
   .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   #linksDlg table { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 12px; }
   #linksDlg td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
-  #linksDlg td a { margin-right: 12px; white-space: nowrap; }
+  #linksDlg td:first-child { width: 170px; }
+  .linkrow { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .linkrow a { white-space: nowrap; }
 
   .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--card); padding: 10px 16px; border-radius: 10px;
            opacity: 0; transition: opacity .2s; pointer-events: none; display: flex; gap: 12px; align-items: center; z-index: 20; max-width: calc(100vw - 32px);
@@ -192,8 +267,9 @@
   <div class="hdr-actions">
     <span id="fetchInfo" class="muted"></span>
     <button id="addBtn" title="Track a job you found elsewhere (LinkedIn, Indeed, a referral)">+ Add job</button>
-    <button id="linksBtn" title="Searches for sites that block automated fetching">Search links</button>
-    <button id="fetchBtn" class="primary">Fetch new jobs</button>
+    <button id="linksBtn" title="One-click searches on LinkedIn, Indeed, Reddit, TES… (sites that block automated fetching)">Search links</button>
+    <button id="setBtn" title="Job types, sites, ranking and your profile">⚙ Settings</button>
+    <button id="fetchBtn" class="primary" title="Choose job types and sites, then fetch (F)">Fetch new jobs</button>
   </div>
 </header>
 <div class="banner" id="banner"></div>
@@ -241,11 +317,37 @@
     </div>
   </form>
 </dialog>
-<dialog id="linksDlg">
-  <h2>Search links</h2>
-  <div class="muted">These sites block bots, so search them by hand. Found something? Use <b>+ Add job</b> to track it here.</div>
-  <div id="linksBody"></div>
-  <div class="actions" style="margin-bottom:0"><button data-close style="margin-left:auto">Close</button></div>
+<dialog id="linksDlg" class="wide">
+  <div class="dlg-top">
+    <h2>Search links</h2>
+    <div class="muted">These sites block bots, so search them by hand: one click opens the search. Found something? Use <b>+ Add job</b> to track it here.</div>
+  </div>
+  <div class="dlg-body" id="linksBody"></div>
+  <div class="dlg-foot"><button data-close style="margin-left:auto">Close</button></div>
+</dialog>
+<dialog id="fetchDlg" class="wide">
+  <div class="dlg-top">
+    <h2>Fetch new jobs</h2>
+    <div class="muted">Pick what to look for this time. Fewer job types and sites make a faster fetch. Your picks are remembered.</div>
+  </div>
+  <div class="dlg-body" id="fetchBody"></div>
+  <div class="dlg-foot">
+    <span class="muted" id="fetchHint" style="font-size:13.5px"></span>
+    <button class="ghost" data-close style="margin-left:auto">Cancel</button>
+    <button class="primary" id="fetchGo">Fetch</button>
+  </div>
+</dialog>
+<dialog id="setDlg" class="wide">
+  <div class="dlg-top">
+    <h2 id="setTitle">Settings</h2>
+    <div class="tabs" id="setTabs"></div>
+  </div>
+  <div class="dlg-body" id="setBody"></div>
+  <div class="dlg-foot">
+    <span class="err" id="setErr"></span>
+    <button class="ghost" data-close style="margin-left:auto">Cancel</button>
+    <button class="primary" id="setSave">Save</button>
+  </div>
 </dialog>
 <div class="toast" id="toast"></div>
 
@@ -256,13 +358,17 @@ const store = {
   set(k, v) { try { localStorage.setItem("autojob." + k, v); } catch {} },
 };
 const state = { status: "new", track: "", source: "", q: "", all: false, minpay: store.get("minpay", ""), sort: store.get("sort", "best"),
-                stage: "", jobs: [], total: 0, sel: null, job: null, events: [], counts: {}, stageCounts: {}, tracks: {}, stages: {}, today: "", busy: {} };
+                stage: "", jobs: [], total: 0, sel: null, job: null, events: [], why: [], showWhy: false, counts: {}, stageCounts: {},
+                tracks: {}, trackKinds: {}, trackLabels: {}, stages: {}, today: "", busy: {} };
 const VIEWS = [["new", "Inbox"], ["saved", "Saved"], ["applied", "Applications"], ["skipped", "Skipped"]];
 const VIEW_NAME = Object.fromEntries(VIEWS);
 const SOURCE_NAMES = { onlinejobs: "OnlineJobs.ph", himalayas: "Himalayas", jobicy: "Jobicy", remotive: "Remotive", remoteok: "RemoteOK",
   weworkremotely: "We Work Remotely", workingnomads: "Working Nomads", linkedin: "LinkedIn", indeed: "Indeed", upwork: "Upwork",
   jobstreet: "JobStreet", manual: "Added by hand" };
 const ELIG = { yes: "open to PH", unknown: "location unclear", no: "restricted" };
+const ELIG_ABROAD = { yes: "visa sponsorship", unknown: "visa not mentioned", no: "no sponsorship" };
+const isAbroad = j => state.trackKinds[j.track] === "abroad";
+const eligText = j => (isAbroad(j) ? ELIG_ABROAD : ELIG)[j.eligible] || j.eligible;
 const WAITING = ["applied", "replied", "interview"];
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -326,16 +432,20 @@ async function load() {
     all: state.all ? 1 : 0, minpay: state.minpay, sort: state.sort, stage: state.stage });
   const data = await api("/api/jobs?" + p);
   Object.assign(state, { jobs: data.jobs, total: data.total, counts: data.counts, stageCounts: data.stage_counts, tracks: data.tracks,
-    stages: Object.fromEntries(data.stages), today: data.today, lastFetch: data.last_fetch, followUpDays: data.follow_up_days });
+    trackKinds: data.track_kinds, trackLabels: data.track_labels, stages: Object.fromEntries(data.stages), today: data.today, lastFetch: data.last_fetch,
+    followUpDays: data.follow_up_days, setupDone: data.setup_done });
+  Object.assign(SOURCE_NAMES, data.source_names);
   fillSelect("#track", "All tracks", Object.entries(data.tracks));
   fillSelect("#source", "All sources", data.sources.map(s => [s, srcName(s)]));
   renderNav(); renderToolbar(); renderList();
   if (!fetchTimer) $("#fetchInfo").textContent = data.last_fetch ? "fetched " + ago(data.last_fetch) : "";
   if (data.profile_todos && store.get("hideProfileTip", "") !== String(data.profile_todos)) {
-    $("#banner").innerHTML = `<span><b>profile.md still has ${data.profile_todos} unfilled TODO lines</b> (availability, VA experience, rates…). Claude can only sell what's in that file, so replies leave those out or use [PLACEHOLDERS].</span><button>Hide</button>`;
+    $("#banner").innerHTML = `<span><b>Your profile still has ${data.profile_todos} blanks to fill in</b> (experience, availability, rates…). Claude only writes what's in your profile, so replies skip those or use [PLACEHOLDERS].</span>
+      <button data-editprofile class="primary">Fill in profile</button><button data-hide style="margin-left:0">Hide</button>`;
     $("#banner").classList.add("show");
-    $("#banner button").onclick = () => { store.set("hideProfileTip", String(data.profile_todos)); $("#banner").classList.remove("show"); };
-  }
+    $("#banner [data-hide]").onclick = () => { store.set("hideProfileTip", String(data.profile_todos)); $("#banner").classList.remove("show"); };
+    $("#banner [data-editprofile]").onclick = () => openSettings("profile");
+  } else $("#banner").classList.remove("show");
   if (state.sel && !state.jobs.some(j => j.id === state.sel)) { state.sel = null; state.job = null; }
   if (!state.sel) renderDetail();
 }
@@ -378,15 +488,16 @@ function renderList() {
 }
 
 function rowHtml(j) {
-  const applied = j.status === "applied", due = dueText(j), pay = payText(j);
-  const sub = [j.company, srcName(j.source), applied ? "applied " + appliedAgo(j) : ago(j.posted_at || j.first_seen)].filter(Boolean).map(esc).join(" · ");
+  const applied = j.status === "applied", due = dueText(j), pay = payText(j), abroad = isAbroad(j);
+  const sub = [j.company, abroad ? j.location : "", srcName(j.source), applied ? "applied " + appliedAgo(j) : ago(j.posted_at || j.first_seen)]
+    .filter(Boolean).map(esc).join(" · ");
   const tags = [
     applied ? `<span class="pill st-${j.stage}">${esc(state.stages[j.stage] || j.stage)}</span>` : "",
     due ? `<span class="pill due">${due}</span>` : "",
     applied && j.followups ? `<span class="pill">followed up ${j.followups}×</span>` : "",
     pay ? `<span class="pill pay ${j.pay_max < 500 ? "low" : ""}" title="${esc(j.salary)}">${pay}</span>` : "",
-    !applied && j.track ? `<span class="pill">${esc(state.tracks[j.track] || j.track)}</span>` : "",
-    !applied && j.eligible !== "yes" ? `<span class="pill ${j.eligible}" title="${esc(j.location)}">${ELIG[j.eligible]}</span>` : "",
+    !applied && j.track ? `<span class="pill">${esc(state.trackLabels[j.track] || j.track)}</span>` : "",
+    !applied && (j.eligible !== "yes" || abroad) ? `<span class="pill ${j.eligible}" title="${esc(j.location)}">${eligText(j)}</span>` : "",
     !applied && state.lastFetch && j.first_seen >= state.lastFetch ? `<span class="pill yes">new</span>` : "",
     !applied && j.has_draft ? `<span class="pill">reply ready</span>` : "",
     j.has_notes ? `<span class="pill">notes</span>` : "",
@@ -406,7 +517,7 @@ async function select(id, { scroll = false } = {}) {
   $("#shell").classList.add("show-detail");
   const data = await api("/api/jobs/" + id);
   if (state.sel !== id) return;  // moved on while loading
-  state.job = data.job; state.events = data.events;
+  state.job = data.job; state.events = data.events; state.why = data.why || [];
   renderDetail(); $("#detail").scrollTop = 0;
 }
 
@@ -421,10 +532,11 @@ function renderDetail() {
     <div class="d-meta">
       ${j.company ? `<span>${esc(j.company)}</span>` : ""}<span>${esc(srcName(j.source))}</span>
       ${j.job_type ? `<span>${esc(j.job_type)}</span>` : ""}
-      <span class="pill ${j.eligible}">${ELIG[j.eligible]}${j.location ? " · " + esc(j.location.slice(0, 60)) : ""}</span>
-      ${posted ? `<span>posted ${ago(posted)}</span>` : ""}
-      ${j.track ? `<span>${esc(state.tracks[j.track] || j.track)} · score ${j.score}</span>` : ""}
+      <span class="pill ${j.eligible}">${eligText(j)}${j.location ? " · " + esc(j.location.slice(0, 60)) : ""}</span>
+      ${posted ? `<span>${j.posted_at ? "posted" : "found"} ${ago(posted)}</span>` : ""}
+      <span>${j.track ? esc(state.trackLabels[j.track] || j.track) + " · " : ""}<button class="link" data-why aria-expanded="${state.showWhy}">score ${j.score}, why?</button></span>
     </div>
+    ${state.showWhy ? whyHtml() : ""}
     <div class="d-pay">${pay ? `<b>≈ ${pay}</b> <span class="muted">(${hourlyText(j)} full-time) · posted as “${esc(j.salary)}”</span>`
       : `<span class="muted">Pay: ${j.salary && j.salary !== "N/A" ? esc(j.salary) : "not stated"}</span>`}</div>
 
@@ -436,6 +548,9 @@ function renderDetail() {
       ${j.status !== "skipped" && !applied ? `<button data-status="skipped">Skip</button>` : ""}
       ${j.status !== "new" ? `<button class="ghost" data-status="new">${applied ? "Not applied (undo)" : "Move to Inbox"}</button>` : ""}
     </div>
+    ${isAbroad(j) && !applied ? `<div class="caution"><b>Before applying abroad:</b> check the school is real (its own website, reviews on r/Internationalteachers).
+      Legitimate schools and DMW-licensed agencies don't charge teachers placement or "processing" fees; verify any agency on
+      <a href="https://dmw.gov.ph/approved-job-orders" target="_blank" rel="noopener">DMW's job orders list</a>.</div>` : ""}
 
     ${applied ? trackerHtml(j) : ""}
 
@@ -461,6 +576,15 @@ function renderDetail() {
   </div>`;
 }
 
+function whyHtml() {
+  const total = state.why.reduce((a, w) => a + w.points, 0);
+  return `<div class="box why"><ul>${state.why.map(w => `<li><span class="pts ${w.points > 0 ? "plus" : w.points < 0 ? "minus" : ""}">${
+      w.points > 0 ? "+" + w.points : w.points || "·"}</span><span>${esc(w.text)}</span></li>`).join("")}
+    <li class="total"><span class="pts">${total}</span><span>Rank in the list</span></li></ul>
+    <div class="muted" style="font-size:13px;margin-top:6px">A search term or keyword in the title counts more than one only in the description.
+      Change what counts in <button class="link" data-opensettings>Settings → Job types</button>.</div></div>`;
+}
+
 function trackerHtml(j) {
   const due = dueText(j), waiting = WAITING.includes(j.stage);
   const fu = state.busy[j.id + "followup"];
@@ -484,9 +608,15 @@ function trackerHtml(j) {
 function renderTips() {
   $("#detail").innerHTML = `<div class="d-wrap">
     <h2>${VIEW_NAME[state.status]}</h2>
-    <p class="muted">Pick a job on the left. Jobs are ranked by keyword match, location, stated pay and how fresh the post is.</p>
+    <p class="muted">Pick a job on the left. Jobs are ranked by how well they match your job types, whether you can apply from
+      where you are (or get a visa, for jobs abroad), stated pay and how fresh the post is. Open any job and click <b>why?</b> next to its score to see the breakdown.</p>
+    <div class="actions" style="margin-top:0">
+      <button class="primary" data-openfetch>Fetch new jobs</button>
+      <button data-opensettings>Choose job types</button>
+    </div>
     <h3>The loop</h3>
     <ol style="padding-left:18px;margin:0">
+      <li><b>Fetch new jobs</b> for the job types you want (pick them in <b>⚙ Settings</b>).</li>
       <li>Read the post, then <b>Ask Claude</b> for a reply and read Claude's note.</li>
       <li><b>Copy reply &amp; open</b>, paste it on the site, send.</li>
       <li><b>Mark applied</b>. It moves to Applications, with a follow-up reminder in ${state.followUpDays || 5} days.</li>
@@ -500,6 +630,7 @@ function renderTips() {
       <span><kbd>A</kbd></span><span>mark applied</span>
       <span><kbd>S</kbd> <kbd>X</kbd></span><span>save / skip</span>
       <span><kbd>/</kbd></span><span>search</span>
+      <span><kbd>F</kbd></span><span>fetch new jobs</span>
       <span><kbd>Esc</kbd></span><span>close the job</span>
     </div>
   </div>`;
@@ -590,6 +721,9 @@ $("#detail").addEventListener("click", async e => {
   const el = e.target.closest("button"); if (!el) return;
   const d = el.dataset;
   if ("back" in d) return select(null);
+  if ("why" in d) { state.showWhy = !state.showWhy; return renderDetailKeepingInputs(); }
+  if ("opensettings" in d) return openSettings("tracks");
+  if ("openfetch" in d) return openFetch();
   if (d.showstage) { state.stage = d.showstage; return load(); }
   if ("closestale" in d) { const r = await api("/api/applications/close-stale", {}); toast(`Closed ${r.closed} as “No response”`); return load(); }
   if (!state.job) return;
@@ -633,6 +767,7 @@ document.addEventListener("keydown", e => {
     const n = state.jobs[k === "j" || k === "arrowdown" ? i + 1 : Math.max(i - 1, 0)];
     if (n) { e.preventDefault(); select(n.id, { scroll: true }); }
   } else if (k === "/") { e.preventDefault(); $("#q").focus(); }
+  else if (k === "f" && !fetchTimer) { e.preventDefault(); openFetch(); }
   else if (!state.job) return;
   else if (k === "o" && state.job.url) window.open(state.job.url, "_blank", "noopener");
   else if (k === "g") draft("reply");
@@ -659,8 +794,61 @@ function watchFetch() {
     load();
   }, 1500);
 }
-$("#fetchBtn").onclick = async () => { await api("/api/fetch", {}); $("#fetchInfo").textContent = "starting…"; watchFetch(); };
+$("#fetchBtn").onclick = () => openFetch();
 api("/api/fetch").then(s => { if (s.running) watchFetch(); });
+
+// The fetch picker: which job types and sites to fetch this time (remembered on the server).
+const KIND_LABEL = { remote: "Remote", abroad: "Abroad" };
+let F = null;
+async function openFetch() {
+  if (fetchTimer) return toast("A fetch is already running.");
+  const st = await api("/api/settings");
+  const tracks = st.tracks.filter(t => t.enabled), srcs = st.sources.filter(s => s.enabled);
+  const keep = (ids, all) => { const set = new Set((ids || []).filter(id => all.some(x => x.id === id))); return set.size ? set : new Set(all.map(x => x.id)); };
+  F = { tracks, srcs, allSrcs: st.sources.length, pickT: keep(st.fetch?.tracks, tracks), pickS: keep(st.fetch?.sources, srcs) };
+  renderFetch(); $("#fetchDlg").showModal();
+}
+function renderFetch() {
+  const kinds = new Set(F.tracks.filter(t => F.pickT.has(t.id)).map(t => t.kind));
+  const check = (group, x, on, small, dim) => `<label class="check ${dim ? "dim" : ""}"><input type="checkbox" data-group="${group}" value="${esc(x.id)}" ${on ? "checked" : ""}>
+    <span>${esc(x.label)} ${x.kind === "abroad" ? `<span class="kind abroad">Abroad</span>` : ""}<small>${small}</small></span></label>`;
+  const sitesOf = kind => F.srcs.filter(s => s.kind === kind);
+  const siteGroup = (kind, title) => sitesOf(kind).length ? `<div class="group-title">${title}${kinds.has(kind) ? "" : ` <span class="help">(skipped: no ${kind} job type picked)</span>`}</div>
+    <div class="checks">${sitesOf(kind).map(s => check("s", s, F.pickS.has(s.id), esc(s.note), !kinds.has(kind))).join("")}</div>` : "";
+  $("#fetchBody").innerHTML = `
+    <div class="pick-head"><b>Job types</b><span><button class="link" data-pickall="t">All</button> · <button class="link" data-picknone="t">None</button></span></div>
+    <div class="checks">${F.tracks.map(t => check("t", t, F.pickT.has(t.id), esc(t.search.slice(0, 4).join(", ")) + (t.search.length > 4 ? "…" : ""))).join("")}</div>
+    <div class="pick-head"><b>Sites</b><span><button class="link" data-pickall="s">All</button> · <button class="link" data-picknone="s">None</button></span></div>
+    ${siteGroup("remote", "Remote job boards")}${siteGroup("abroad", "Teaching abroad")}
+    ${F.srcs.length < F.allSrcs ? `<p class="muted" style="font-size:13.5px">Some sites are switched off. Turn them on in <button class="link" data-gosettings="sources">Settings → Sites</button>.</p>` : ""}`;
+  const terms = new Set(F.tracks.filter(t => F.pickT.has(t.id) && t.kind === "remote").flatMap(t => t.search)).size;
+  const searchSites = ["onlinejobs", "himalayas"].filter(s => F.pickS.has(s) && kinds.has("remote")).length;
+  $("#fetchHint").textContent = !F.pickT.size ? "Pick at least one job type." : !F.pickS.size ? "Pick at least one site."
+    : searchSites ? `About ${Math.max(1, Math.round(terms * searchSites * 0.12))} min: ${terms} search terms on ${searchSites} search site${searchSites > 1 ? "s" : ""}.` : "Usually under a minute or two.";
+  $("#fetchGo").disabled = !F.pickT.size || !F.pickS.size;
+}
+$("#fetchBody").addEventListener("change", e => {
+  const g = e.target.dataset.group; if (!g) return;
+  const set = g === "t" ? F.pickT : F.pickS;
+  e.target.checked ? set.add(e.target.value) : set.delete(e.target.value);
+  renderFetch();
+});
+$("#fetchBody").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const d = b.dataset;
+  if (d.pickall || d.picknone) {
+    const g = d.pickall || d.picknone, set = g === "t" ? F.pickT : F.pickS, all = g === "t" ? F.tracks : F.srcs;
+    set.clear(); if (d.pickall) all.forEach(x => set.add(x.id));
+    renderFetch();
+  }
+  if (d.gosettings) { $("#fetchDlg").close(); openSettings(d.gosettings); }
+});
+$("#fetchGo").onclick = async () => {
+  try {
+    await api("/api/fetch", { tracks: [...F.pickT], sources: [...F.pickS] });
+    $("#fetchDlg").close(); $("#fetchInfo").textContent = "starting…"; watchFetch();
+  } catch (err) { toast(err.message); }
+};
 
 // --- Dialogs ---------------------------------------------------------------------
 document.querySelectorAll("dialog [data-close]").forEach(b => b.onclick = () => b.closest("dialog").close());
@@ -678,16 +866,173 @@ $("#addForm").onsubmit = async e => {
 };
 $("#linksBtn").onclick = async () => {
   if (!$("#linksBody").innerHTML) {
-    const rows = await api("/api/links");
-    $("#linksBody").innerHTML = `<table>${rows.map(r => `<tr><td><b>${esc(r.keyword)}</b></td><td>${Object.entries(r).filter(([k]) => k !== "keyword")
-      .map(([k, u]) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(k)}</a>`).join("")}</td></tr>`).join("")}</table>`;
+    const data = await api("/api/links");
+    const link = (name, url) => `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(name)}</a>`;
+    $("#linksBody").innerHTML = data.tracks.map(t => `<div class="group-title">${esc(t.label)} ${t.kind === "abroad" ? `<span class="kind abroad">Abroad</span>` : ""}</div>
+      <table>${t.searches.map(r => `<tr><td><b>${esc(r.keyword)}</b></td><td><div class="linkrow">${r.links.map(([k, u]) => link(k, u)).join("")}</div></td></tr>`).join("")}</table>`).join("")
+      + (data.resources.length ? `<div class="group-title">More places to look</div><div class="res">${data.resources.map(r =>
+        `<div>${link(r.name, r.url)} <span class="muted">· ${esc(r.note)}</span></div>`).join("")}</div>` : "");
   }
   $("#linksDlg").showModal();
 };
 
+// --- Settings: job types, sites, ranking, profile ------------------------------------
+const TABS = [["tracks", "Job types"], ["sources", "Sites"], ["ranking", "Ranking"], ["profile", "My profile"]];
+let S = null;
+const terms = v => [...new Set(String(v).split(/[\n,]/).map(x => x.trim().toLowerCase()).filter(Boolean))];
+
+async function openSettings(tab = "tracks", welcome = false) {
+  const [st, pr] = await Promise.all([api("/api/settings"), api("/api/profile")]);
+  S = { ...st, tab, welcome, open: null, profile: pr.text, profileTodos: pr.todos, profileDirty: false };
+  $("#setErr").textContent = "";
+  renderSettings();
+  if (!$("#setDlg").open) $("#setDlg").showModal();
+}
+
+function renderSettings() {
+  $("#setTitle").textContent = S.welcome ? "Welcome! What jobs are you looking for?" : "Settings";
+  $("#setTabs").innerHTML = TABS.map(([k, l]) => `<button class="${k === S.tab ? "on" : ""}" data-tab="${k}">${l}${
+    k === "profile" && S.profileTodos ? `<span class="badge" title="blanks to fill in">${S.profileTodos}</span>` : ""}</button>`).join("");
+  $("#setSave").textContent = S.welcome ? "Save and continue" : "Save";
+  const body = { tracks: tracksTab, sources: sourcesTab, ranking: rankingTab, profile: profileTab }[S.tab]();
+  $("#setBody").innerHTML = body;
+}
+
+function tracksTab() {
+  const card = (t, i) => `<div class="tcard ${t.enabled ? "" : "off"}">
+    <div class="t-row">
+      <label class="switch" title="${t.enabled ? "On" : "Off"}"><input type="checkbox" data-ti="${i}" data-f="enabled" ${t.enabled ? "checked" : ""} aria-label="Use ${esc(t.label)}"><span></span></label>
+      <div class="t-name">${esc(t.label)} <span class="kind ${t.kind}">${KIND_LABEL[t.kind]}</span>
+        <span class="t-sub">${esc(t.search.join(", ")) || "no search terms yet"}</span></div>
+      <button class="small" data-toggle="${esc(t.id)}">${S.open === t.id ? "Done" : "Edit"}</button>
+    </div>
+    ${S.open === t.id ? `<div class="t-edit">
+      <div class="two">
+        <label class="field">Name<input type="text" data-ti="${i}" data-f="label" value="${esc(t.label)}"></label>
+        <label class="field">Where is the job?
+          <select data-ti="${i}" data-f="kind">
+            <option value="remote" ${t.kind === "remote" ? "selected" : ""}>Remote, from the Philippines</option>
+            <option value="abroad" ${t.kind === "abroad" ? "selected" : ""}>Abroad (needs a work visa)</option>
+          </select></label>
+      </div>
+      <label class="field">Search terms <span class="help">Typed into the job sites' search boxes, and the strongest ranking signal. One per line or comma-separated.</span>
+        <textarea data-ti="${i}" data-f="search">${esc(t.search.join("\n"))}</textarea></label>
+      <label class="field">Extra ranking keywords <span class="help">Words that make a job more relevant when they appear (tools, tasks). Not searched for.</span>
+        <textarea data-ti="${i}" data-f="keywords">${esc(t.keywords.join(", "))}</textarea></label>
+      <div class="actions" style="margin:0">
+        ${t.default ? `<button class="small ghost" data-reset="${i}">Reset to default</button>` : `<button class="small ghost danger" data-del="${i}">Delete this job type</button>`}
+      </div>
+    </div>` : ""}
+  </div>`;
+  const on = S.tracks.filter(t => t.enabled).length;
+  return `${S.welcome ? `<div class="welcome"><b>Turn on the kinds of jobs you want.</b> autojob searches job sites for them, ranks every job by how well it
+      matches, and helps you apply. You can change this any time in ⚙ Settings. Don't see your job? Add your own at the bottom.</div>` : ""}
+    <p class="muted" style="margin-top:0">${on} of ${S.tracks.length} job types on. Jobs are ranked by the job type they match best; click <b>Edit</b> to change what counts.</p>
+    ${S.tracks.map((t, i) => [t, i]).filter(([t]) => t.kind === "remote").map(([t, i]) => card(t, i)).join("")}
+    <div class="group-title">Jobs abroad (on-site, with visa sponsorship)</div>
+    ${S.tracks.map((t, i) => [t, i]).filter(([t]) => t.kind === "abroad").map(([t, i]) => card(t, i)).join("")}
+    <button data-addtrack style="margin-top:6px">+ Add your own job type</button>`;
+}
+
+function sourcesTab() {
+  const row = s => `<div class="tcard ${s.enabled ? "" : "off"}"><div class="t-row">
+      <label class="switch"><input type="checkbox" data-si="${esc(s.id)}" ${s.enabled ? "checked" : ""} aria-label="Use ${esc(s.label)}"><span></span></label>
+      <div class="t-name">${esc(s.label)} <span class="kind ${s.kind}">${KIND_LABEL[s.kind]}</span><span class="t-sub" style="white-space:normal">${esc(s.note)}</span></div>
+    </div></div>`;
+  return `<p class="muted" style="margin-top:0">Sites autojob reads automatically. You can still pick a subset each time you fetch.</p>
+    <div class="group-title">Remote job boards</div>${S.sources.filter(s => s.kind === "remote").map(row).join("")}
+    <div class="group-title">Teaching abroad</div>${S.sources.filter(s => s.kind === "abroad").map(row).join("")}
+    <p class="muted" style="font-size:13.5px">LinkedIn, Indeed, JobStreet, Upwork, Reddit and TES block automated reading. Use <b>Search links</b> in the header for one-click searches there.</p>`;
+}
+
+function rankingTab() {
+  const r = S.scoring;
+  return `<p style="margin-top:0">How each job's score is worked out:</p>
+    <ol class="how">
+      <li>Each of your job types checks the job: a <b>search term or keyword in the title</b> is worth 4 points, <b>only in the description</b> 1 point. The best-matching job type wins.</li>
+      <li><b>+6</b> if you can apply: open to the Philippines (remote jobs), or offers visa sponsorship (jobs abroad).</li>
+      <li><b>+4</b> for good stated pay ($1,200+/month), <b>−4</b> for low pay (under $500/month). No pay stated: no change.</li>
+      <li><b>−5</b> for senior titles (senior, lead, manager…), if switched on below.</li>
+      <li><b>+3</b> for posts from the last 2 days, while they're new.</li>
+    </ol>
+    <div class="rank-grid">
+      <label class="field">Hide jobs scoring below<input type="number" min="0" max="60" data-r="min_score" value="${r.min_score}">
+        <span class="help">Lower it to see more (weaker) matches in your Inbox. You can also tick “show low-score” in the list.</span></label>
+      <label class="field">Hide jobs older than (days)<input type="number" min="1" max="90" data-r="max_age_days" value="${r.max_age_days}">
+        <span class="help">Older posts are usually filled already.</span></label>
+      <label class="check" style="max-width:520px"><input type="checkbox" data-r="demote_senior" ${r.demote_senior ? "checked" : ""}>
+        <span>Push down senior roles<small>Good if you're early in your career. Turn off if you're experienced.</small></span></label>
+    </div>`;
+}
+
+function profileTab() {
+  return `<p style="margin-top:0">Claude writes replies <b>only</b> from what's in your profile, so this is where the quality of your applications comes from.
+    Replace each <code>TODO</code> line with your real info. Lines still containing TODO are never sent to Claude.</p>
+    <p class="muted" style="font-size:13.5px">${S.profileTodos ? `${S.profileTodos} blanks left to fill in.` : "All filled in."} Saved to <code>profile.md</code> in the autojob folder.</p>
+    <textarea class="profile" data-profile spellcheck="false">${esc(S.profile)}</textarea>`;
+}
+
+$("#setTabs").addEventListener("click", e => { const b = e.target.closest("[data-tab]"); if (b) { S.tab = b.dataset.tab; renderSettings(); } });
+$("#setBody").addEventListener("input", e => {
+  const el = e.target, d = el.dataset;
+  if ("profile" in d) { S.profile = el.value; S.profileDirty = true; return; }
+  if (d.ti !== undefined && d.f && d.f !== "enabled" && d.f !== "kind") {
+    const t = S.tracks[+d.ti];
+    t[d.f] = d.f === "label" ? el.value : terms(el.value);
+  }
+  if (d.r && el.type === "number") S.scoring[d.r] = el.value === "" ? "" : +el.value;
+});
+$("#setBody").addEventListener("change", e => {
+  const el = e.target, d = el.dataset;
+  if (d.ti !== undefined && d.f === "enabled") { S.tracks[+d.ti].enabled = el.checked; renderSettings(); }
+  if (d.ti !== undefined && d.f === "kind") { S.tracks[+d.ti].kind = el.value; renderSettings(); }
+  if (d.si) { S.sources.find(s => s.id === d.si).enabled = el.checked; renderSettings(); }
+  if (d.r === "demote_senior") S.scoring.demote_senior = el.checked;
+});
+$("#setBody").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const d = b.dataset;
+  if (d.toggle) { S.open = S.open === d.toggle ? null : d.toggle; renderSettings(); }
+  if (d.reset) { const t = S.tracks[+d.reset]; Object.assign(t, { label: t.default.label, kind: t.default.kind, search: [...t.default.search], keywords: [...t.default.keywords] }); renderSettings(); }
+  if (d.del) { const t = S.tracks[+d.del]; if (confirm(`Delete “${t.label}”?`)) { S.tracks.splice(+d.del, 1); renderSettings(); } }
+  if ("addtrack" in d) {
+    const id = "custom_" + Date.now().toString(36);
+    S.tracks.push({ id, label: "My job type", kind: "remote", search: [], keywords: [], enabled: true, custom: true, default: null });
+    S.open = id; renderSettings();
+    $("#setBody").querySelector(`[data-ti="${S.tracks.length - 1}"][data-f="label"]`)?.select();
+  }
+});
+$("#setSave").onclick = async () => {
+  $("#setErr").textContent = "";
+  const sc = S.scoring;
+  if (!Number.isInteger(sc.min_score) || !Number.isInteger(sc.max_age_days) || sc.max_age_days < 1) {
+    S.tab = "ranking"; renderSettings(); $("#setErr").textContent = "Enter whole numbers for the ranking settings."; return;
+  }
+  const btn = $("#setSave"); btn.disabled = true;
+  try {
+    await api("/api/settings", {
+      tracks: Object.fromEntries(S.tracks.map(t => [t.id, { label: t.label.trim() || t.id, kind: t.kind, search: t.search, keywords: t.keywords, enabled: t.enabled, custom: t.custom }])),
+      sources: Object.fromEntries(S.sources.map(s => [s.id, s.enabled])),
+      scoring: sc,
+    });
+    if (S.profileDirty) await api("/api/profile", { text: S.profile });
+    const welcome = S.welcome;
+    $("#setDlg").close(); $("#linksBody").innerHTML = "";
+    toast(welcome ? "Saved. Now pick what to fetch." : "Saved. Rankings updated.");
+    state.sel = null; state.job = null; state.track = ""; await load();
+    if (welcome) openFetch();
+  } catch (err) {
+    $("#setErr").textContent = err.message;
+  } finally { btn.disabled = false; }
+};
+$("#setBtn").onclick = () => openSettings("tracks");
+
 const [hashView, hashJob] = location.hash.slice(1).split("/");
 if (VIEW_NAME[hashView]) state.status = hashView;
-load().then(() => { if (hashJob && state.jobs.some(j => j.id === hashJob)) select(hashJob, { scroll: true }); });
+load().then(() => {
+  if (hashJob && state.jobs.some(j => j.id === hashJob)) select(hashJob, { scroll: true });
+  if (!state.setupDone) openSettings("tracks", true);  // first run: choose job types before anything else
+});
 </script>
 </body>
 </html>
