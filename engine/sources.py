@@ -6,6 +6,7 @@ import json
 import re
 import time
 import xml.etree.ElementTree as ET
+from datetime import date
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote_plus
 
@@ -271,6 +272,97 @@ def weworkremotely(cfg, ctx):
     return out
 
 
+# --- Indeed / LinkedIn via JobSpy (github.com/speedyapply/JobSpy) --------------------
+# JobSpy reads Indeed through the API its mobile app uses, so it isn't blocked like page scraping.
+# LinkedIn's public search is stricter: it blocks an IP after a few hundred quick requests.
+
+def jobspy_search(site, cfg, ctx, keep=lambda r: True, source=None, terms=None, label="", **kw):
+    try:
+        from jobspy import scrape_jobs
+    except ImportError:
+        raise RuntimeError("JobSpy isn't installed. Run: pip install -r requirements.txt") from None
+    hours_old = max(24, (date.today() - date.fromisoformat(ctx["cutoff"])).days * 24)
+    out = []
+    for term in terms or search_terms(cfg, ctx):
+        df = scrape_jobs(site_name=[site], search_term=term, hours_old=hours_old, description_format="html",
+                         results_wanted=cfg.get("results_wanted", 30), verbose=0, **kw)
+        err = df.attrs.get("errors", {}).get(site)
+        if err:
+            ctx["warn"](f"{label}'{term}': {err}")
+            if any(x in str(err).lower() for x in ("429", "blocked", "403")):
+                ctx["warn"]("blocked for now; skipping the remaining searches")
+                break
+        out += [jobspy_job(source or site, r) for r in df.to_dict("records") if keep(r)]
+        time.sleep(cfg.get("delay_seconds", 2))
+    return out
+
+
+def jobspy_job(site, r):
+    def val(k):
+        v = r.get(k)
+        return None if v is None or v != v else v  # pandas uses NaN for missing numbers
+    loc = val("location") or ""
+    if isinstance(loc, dict):
+        loc = ", ".join(str(x) for x in (loc.get("city"), loc.get("state"), loc.get("country")) if x)
+    jt = val("job_type") or ""
+    interval = val("interval")
+    return {
+        "source": site,
+        "url": r["job_url"],
+        "title": r["title"],
+        "company": val("company") or "",
+        "location": str(loc),
+        "salary": money(val("min_amount"), val("max_amount"), str(getattr(interval, "value", interval) or ""),
+                        val("currency") or "USD"),
+        "job_type": listy([getattr(x, "name", x) for x in jt]) if isinstance(jt, list) else str(jt),
+        "posted_at": str(val("date_posted") or "")[:10],
+        "description": clean(val("description")),
+        "tags": listy(val("skills")),
+    }
+
+
+def indeed(cfg, ctx):
+    return jobspy_search("indeed", cfg, ctx, country_indeed=cfg.get("country", "philippines"), is_remote=True)
+
+
+def indeed_abroad(cfg, ctx):
+    """Indeed's sites in other countries, for abroad job types. Each country runs the first few search
+    terms (the subject phrases), since single words like "math" bring back tutoring and everything else."""
+    terms = search_terms(cfg, ctx)[:cfg.get("max_terms", 4)]
+    out = []
+    for country in cfg.get("countries", []):
+        try:
+            jobs = jobspy_search("indeed", cfg, ctx, source="indeed_abroad", terms=terms,
+                                 label=f"{country}: ", country_indeed=country)
+        except ValueError as e:  # a country name Indeed doesn't have
+            ctx["warn"](f"{country}: {e}")
+            continue
+        for j in jobs:
+            j["location"] = j["location"] or country.title()
+        out += jobs
+    return out
+
+
+def linkedin(cfg, ctx):
+    # JobSpy can't apply LinkedIn's remote filter. LinkedIn shows remote jobs with just the country as
+    # their location and on-site / hybrid ones with a city, so keep country-only posts and ones that say remote.
+    where = cfg.get("location", "Philippines")
+    def remote(r):
+        loc = r.get("location")
+        loc = loc if isinstance(loc, str) else ""
+        return bool(r.get("is_remote")) or loc.strip().lower() == where.lower()
+    return jobspy_search("linkedin", cfg, ctx, keep=remote, location=where)
+
+
+def linkedin_details(url):
+    page = get(url).text
+    # The post can contain its own divs, so read up to the "Show more" button that follows it.
+    m = re.search(r'<div class="show-more-less-html__markup[^"]*"[^>]*>(.*?)<button', page, re.S)
+    if not m:
+        raise RuntimeError("LinkedIn didn't show the post (it may want a login). Open the job link instead.")
+    return clean(m.group(1))
+
+
 # --- Teaching abroad ---------------------------------------------------------------
 
 TA_BASE = "https://www.teachaway.com"
@@ -422,6 +514,8 @@ def seek_details(url):
 SOURCES = {
     "onlinejobs": onlinejobs,
     "himalayas": himalayas,
+    "indeed": indeed,
+    "linkedin": linkedin,
     "jobicy": jobicy,
     "remotive": remotive,
     "remoteok": remoteok,
@@ -429,12 +523,15 @@ SOURCES = {
     "workingnomads": workingnomads,
     "teachaway": teachaway,
     "seekteachers": seekteachers,
+    "indeed_abroad": indeed_abroad,
 }
 
 # What each site is, for the dashboard. kind: which job types it serves.
 INFO = {
     "onlinejobs": {"label": "OnlineJobs.ph", "kind": "remote", "note": "The biggest board for Filipino VAs. Searches your job types' terms."},
     "himalayas": {"label": "Himalayas", "kind": "remote", "note": "Remote jobs open to the Philippines. Searches your job types' terms."},
+    "indeed": {"label": "Indeed PH", "kind": "remote", "note": "Work-from-home jobs on Indeed Philippines, via JobSpy. Searches your job types' terms."},
+    "linkedin": {"label": "LinkedIn", "kind": "remote", "note": "Remote jobs in the Philippines, via JobSpy. LinkedIn blocks heavy use for a while, so it's off by default."},
     "jobicy": {"label": "Jobicy", "kind": "remote", "note": "Remote jobs, APAC and worldwide."},
     "remotive": {"label": "Remotive", "kind": "remote", "note": "Remote jobs, mostly tech and support."},
     "remoteok": {"label": "RemoteOK", "kind": "remote", "note": "Remote jobs, mostly tech."},
@@ -442,10 +539,12 @@ INFO = {
     "workingnomads": {"label": "Working Nomads", "kind": "remote", "note": "Remote jobs, mixed."},
     "teachaway": {"label": "Teach Away", "kind": "abroad", "note": "International schools hiring teachers from overseas (Middle East, Asia, US J-1)."},
     "seekteachers": {"label": "Seek Teachers", "kind": "abroad", "note": "International schools in China, the Middle East and Asia."},
+    "indeed_abroad": {"label": "Indeed (abroad)", "kind": "abroad", "note": "Indeed in the countries listed in config.toml (Spain, Italy, France, Australia, New Zealand, Canada), via JobSpy."},
 }
 
 # Sites whose search results are only a preview; the full post is read when you ask Claude.
-DETAILS = {"onlinejobs": olj_details, "teachaway": jobposting_details, "seekteachers": seek_details}
+DETAILS = {"onlinejobs": olj_details, "teachaway": jobposting_details, "seekteachers": seek_details,
+           "linkedin": linkedin_details}
 # For these, new posts are read in full while fetching: visa / relocation details only appear there.
 DETAILS_ON_FETCH = {"teachaway", "seekteachers"}
 

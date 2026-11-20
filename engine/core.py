@@ -152,6 +152,8 @@ def fetch_all(log=print, tracks=None, source_names=None):
             # The same job turns up under several search terms; keep one copy.
             found = list({j["url"]: j for j in fn(scfg, ctx) if j.get("url") and j.get("title")}.values())
             jobs = [j for j in found if scoring.matches(j, match_cfg)]
+            if scfg.get("only_visa"):  # boards full of local-hire jobs: keep posts that offer a visa / relocation
+                jobs = [j for j in jobs if scoring.sponsorship(scoring.as_row(j), cfg) == "yes"]
             if name in sources.DETAILS_ON_FETCH:
                 fresh = [j for j in jobs if j["url"] not in known]
                 for i, j in enumerate(fresh, 1):

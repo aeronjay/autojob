@@ -76,10 +76,13 @@ The built-in defaults live in `config.toml` (job types, scoring weights, locatio
 |---|---|---|
 | OnlineJobs.ph | remote | one search per search term, newest first, 3 s between requests; stops paging at jobs it already has. Full post fetched when you ask Claude |
 | Himalayas | remote | API search per search term, filtered to jobs open to the Philippines |
+| Indeed PH | remote | [JobSpy](https://github.com/speedyapply/JobSpy) search per search term (it uses Indeed's app API, so it isn't blocked); work-from-home jobs only, with full posts and pay |
+| LinkedIn | remote | JobSpy, **off by default**: LinkedIn blocks an IP for a while after a few dozen quick searches. Keeps posts listed as Philippines-wide (remote) rather than a city. Full post read when you ask Claude |
 | Jobicy, Remotive, RemoteOK, We Work Remotely, Working Nomads | remote | APIs / RSS. Only jobs matching your job types are saved |
 | Teach Away | abroad | international schools' teaching jobs by subject (`subjects` in `config.toml`); each new post is read in full to find visa/relocation details |
 | Seek Teachers | abroad | international schools in China, the Middle East and Asia (secondary by default) |
-| LinkedIn, Indeed, JobStreet, Upwork, Freelancer, PeoplePerHour, Reddit (r/forhire, r/buhaydigital, r/Internationalteachers), TES | **search links only** | They block bots or ban auto-appliers. **Search links** builds one-click searches from your job types |
+| Indeed (abroad) | abroad | JobSpy search of Indeed in each country in `countries` (default Spain, Italy, France, Australia, New Zealand, Canada), first 4 search terms per country. Saves only posts mentioning visa sponsorship / relocation (`only_visa`), since most are local hires |
+| JobStreet, Upwork, Freelancer, PeoplePerHour, Reddit (r/forhire, r/buhaydigital, r/Internationalteachers), TES (plus LinkedIn and Indeed with their own filters) | **search links only** | They block bots or ban auto-appliers. **Search links** builds one-click searches from your job types |
 
 **Teaching abroad, a caution:** schools almost always need a teaching licence (PRC LPT) and often 2+ years of experience, and Claude's note flags when a post asks for something your profile doesn't have. Legitimate schools and DMW-licensed agencies don't charge teachers placement fees; check agencies on [DMW's approved job orders](https://dmw.gov.ph/approved-job-orders), and for the US J-1 route apply only through a [State Department-designated sponsor](https://j1visa.state.gov/programs/teacher).
 

@@ -265,6 +265,21 @@ max_pages = 2          # 20 jobs per page (sorted by relevance, not date)
 delay_seconds = 2      # Himalayas rate-limits at roughly 30 quick requests
 extra_search = []
 
+# Indeed and LinkedIn are read with JobSpy (pip install python-jobspy). Each search term is one search.
+[sources.indeed]
+enabled = true
+country = "philippines"   # which Indeed site (JobSpy country name); only work-from-home jobs are kept
+results_wanted = 30       # per search term
+delay_seconds = 2
+extra_search = []
+
+[sources.linkedin]
+enabled = false           # LinkedIn blocks an IP for a while after heavy use; turn on in Settings if you want it
+location = "Philippines"
+results_wanted = 10       # per search term: one request each. Full posts are read only when you ask Claude.
+delay_seconds = 5
+extra_search = []
+
 [sources.jobicy]
 enabled = true
 geos = ["apac", "philippines", ""]   # "" = all regions
@@ -293,4 +308,16 @@ delay_seconds = 2
 enabled = true
 categories = [919]     # 919 = Secondary, 918 = Primary, 921 = IB (see seekteachers.com/jobs.asp)
 max_pages = 4          # 20 jobs per page, newest first
+delay_seconds = 2
+
+# Indeed's site in each country below (JobSpy country names). Other options include "uk", "ireland",
+# "germany", "netherlands", "portugal", "united arab emirates", "saudi arabia", "qatar", "china", "thailand".
+[sources.indeed_abroad]
+enabled = true
+countries = ["spain", "italy", "france", "australia", "new zealand", "canada"]
+# Most teaching jobs on these sites are for local hires (a test run: 175 of 182 math posts never mentioned
+# a visa). true = save only posts that mention visa sponsorship / relocation; false = save them all.
+only_visa = true
+max_terms = 4          # first N search terms of your abroad job types, per country
+results_wanted = 30    # per search term per country
 delay_seconds = 2
