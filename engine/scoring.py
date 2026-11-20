@@ -1,6 +1,8 @@
-"""Keyword scoring + location eligibility. Deterministic and free (no AI calls)."""
+"""Keyword scoring + location eligibility + pay. Deterministic and free (no AI calls)."""
 import re
 from functools import lru_cache
+
+from . import pay
 
 
 @lru_cache(maxsize=None)
@@ -17,7 +19,7 @@ def eligibility(job, loc_cfg):
     """yes = open to PH/worldwide, no = restricted elsewhere, unknown = can't tell."""
     loc = (job["location"] or "").lower().strip()
     body = (job["description"] or "").lower()
-    if job["source"] == "onlinejobs":
+    if job["source"] == "onlinejobs" or job["manual"]:  # jobs you added yourself are ones you can apply to
         return "yes"
     if any(p in body for p in loc_cfg["blocked_phrases"]):
         return "no"
@@ -30,6 +32,7 @@ def eligibility(job, loc_cfg):
 
 def score_job(job, cfg):
     s = cfg["scoring"]
+    pay_cfg = cfg.get("pay", {})
     title = (job["title"] or "").lower()
     body = f"{job['description'] or ''} {job['tags'] or ''}".lower()
 
@@ -47,15 +50,26 @@ def score_job(job, cfg):
         score += s["eligible_bonus"]
     if any(w in title for w in s["demote_title"]):
         score -= s["demote_points"]
+
+    # Pay: well-paid jobs move up, jobs whose stated pay is low move down. Unstated pay is neutral.
+    pay_min, pay_max = pay.parse(job["salary"], job["source"], pay_cfg)
+    if pay_max is not None and best > 0:
+        mid = (pay_min + pay_max) / 2
+        if mid >= pay_cfg.get("good_usd_month", 1200):
+            score += pay_cfg.get("good_bonus", 4)
+        elif mid < pay_cfg.get("low_usd_month", 500):
+            score -= pay_cfg.get("low_penalty", 4)
+
     hidden = int(any(w in title for w in s["exclude_title"]))
-    return {"track": best_track, "score": score, "eligible": eligible, "hidden": hidden}
+    return {"track": best_track, "score": score, "eligible": eligible, "hidden": hidden,
+            "pay_min": pay_min, "pay_max": pay_max}
 
 
 def rescore_all(conn, cfg):
     rows = conn.execute("SELECT * FROM jobs").fetchall()
-    for row in rows:
-        r = score_job(row, cfg)
-        conn.execute("UPDATE jobs SET track=?, score=?, eligible=?, hidden=? WHERE id=?",
-                     (r["track"], r["score"], r["eligible"], r["hidden"], row["id"]))
+    conn.executemany(
+        "UPDATE jobs SET track=:track, score=:score, eligible=:eligible, hidden=:hidden, "
+        "pay_min=:pay_min, pay_max=:pay_max WHERE id=:id",
+        [{**score_job(row, cfg), "id": row["id"]} for row in rows])
     conn.commit()
     return len(rows)

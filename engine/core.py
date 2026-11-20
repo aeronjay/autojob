@@ -13,6 +13,21 @@ def load_config():
         return tomllib.load(f)
 
 
+def tracking(cfg):
+    """[tracking] settings with defaults, so older config.toml files keep working."""
+    return {"follow_up_days": 5, "ghost_days": 21, **cfg.get("tracking", {})}
+
+
+def ensure_scored(log=print):
+    """After an upgrade, fill in the columns that scoring produces (pay estimates etc.)."""
+    conn = db.connect()
+    if db.get_meta(conn, "scored_version") != str(db.VERSION):
+        log("Updating scores and pay estimates for existing jobs (one time)...")
+        scoring.rescore_all(conn, load_config())
+        db.set_meta(conn, "scored_version", str(db.VERSION))
+    conn.close()
+
+
 def fetch_all(log=print):
     cfg = load_config()
     conn = db.connect()
@@ -30,6 +45,7 @@ def fetch_all(log=print):
             continue
         warnings = []
         ctx["warn"] = lambda msg, name=name, w=warnings: (w.append(msg), log(f"  {name:<15} warning: {msg}"))
+        log(f"  {name:<15} searching...")
         try:
             # The same job turns up under several search terms; keep one copy.
             jobs = list({j["url"]: j for j in fn(scfg, ctx) if j.get("url") and j.get("title")}.values())
@@ -40,5 +56,6 @@ def fetch_all(log=print):
             summary.append((name, 0, 0, str(e)))
             log(f"  {name:<15} FAILED: {e}")
     scoring.rescore_all(conn, cfg)
+    db.set_meta(conn, "scored_version", str(db.VERSION))
     conn.close()
     return summary

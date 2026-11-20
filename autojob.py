@@ -1,4 +1,4 @@
-"""autojob: find remote jobs, score them, have Claude write replies. You click send.
+"""autojob: find remote jobs, rank them, have Claude write replies, track every application. You click send.
 
 Usage:
   python autojob.py fetch     # pull new jobs from every source
@@ -26,6 +26,7 @@ def main():
         print(f"Done. {n} matching jobs waiting in the dashboard (python autojob.py serve).")
     elif cmd == "serve":
         from engine.app import app
+        core.ensure_scored()
         webbrowser.open("http://127.0.0.1:5000")
         app.run(port=5000, debug=False)
     elif cmd == "rescore":

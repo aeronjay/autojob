@@ -58,6 +58,31 @@ exclude_title = ["on-site", "onsite", "on site", "hybrid", "nurse", "driver", "t
 min_score = 8
 # Jobs posted (or first seen) more than this many days ago drop out of the inbox (likely filled).
 max_age_days = 14
+# Jobs posted in the last fresh_days get fresh_bonus points while they are new: early applicants get read.
+fresh_days = 2
+fresh_bonus = 3
+
+# ---------------------------------------------------------------------------
+# Pay. Stated pay is converted to an estimated USD per month so jobs can be compared
+# ("$5/hr" counts as full-time hours). Jobs that don't state pay are left alone.
+# The dashboard also has a "Min pay" filter; this section only affects ranking.
+# ---------------------------------------------------------------------------
+[pay]
+good_usd_month = 1200   # at or above this: +good_bonus points
+good_bonus = 4
+low_usd_month = 500     # below this: -low_penalty points
+low_penalty = 4
+hours_per_month = 160   # used to convert hourly rates
+
+[pay.rates]             # rough conversion to USD; only PHP matters much on OnlineJobs.ph
+php = 0.0172            # 1 PHP in USD (about 58 PHP per USD)
+
+# ---------------------------------------------------------------------------
+# Application tracker.
+# ---------------------------------------------------------------------------
+[tracking]
+follow_up_days = 5      # an application with no reply is flagged for a follow-up after this many days
+ghost_days = 21         # after this many days with no reply it can be closed as "No response"
 
 # ---------------------------------------------------------------------------
 # Location eligibility. Many "remote" jobs are US/EU-only; these rules sort them out.
